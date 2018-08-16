@@ -96,7 +96,7 @@ class Link:
         return urdfroot
         
 
-    def save_to_stl3(self, meshes_directory):
+    def genlink(self, meshes_directory):
         didifail = 0        
         
         try:            
@@ -162,6 +162,8 @@ class Link:
             
             # Get the root component of the active design
             rootComp = design.rootComponent
+            
+            
     
             # Create two new components under root component
             allOccs = rootComp.occurrences   
@@ -178,6 +180,28 @@ class Link:
             for i in range(0,len(rootComp.occurrences)):
                 rootComp.occurrences.item(i).transform = eval('it'+str(i))
                 pass
+            
+            ###TODO:
+            ### must set mass and center of inertia! i think visual and origins are correct because this info is in the stl...
+            logging.info('XYZ moments of inertia:'+str(rootComp.physicalProperties.getXYZMomentsOfInertia()))
+            logging.info('Mass:'+str(rootComp.physicalProperties.mass))
+            
+            # create aNOTHER! exportManager instance
+            exportMgr = design.exportManager
+
+            # export the root component to printer utility
+            stlRootOptions = exportMgr.createSTLExportOptions(rootComp,  meshes_directory+'/' + stlname)
+    
+            # get all available print utilities
+            #printUtils = stlRootOptions.availablePrintUtilities
+    
+            # export the root component to the print utility, instead of a specified file
+            #for printUtil in printUtils:
+            #    stlRootOptions.sendToPrintUtility = True
+            #   stlRootOptions.printUtility = printUtil
+            stlRootOptions.sendToPrintUtility = False
+    
+            exportMgr.execute(stlRootOptions)            
             
             self.visual.geometryfilename = "package://somepackage/meshes/" + stlname +".stl"
             self.collision.geometryfilename = self.visual.geometryfilename # the legend has it that this file should be a slimmer version of the visuals, so that collisions can be calculated more easily....       
@@ -290,6 +314,8 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 for i in range(0, linkselInput.selectionCount):
                     if linkselInput.selection(i).entity not in currentlink.group:
                         currentlink.group.append( linkselInput.selection(i).entity)
+                        ##TODO:
+                        # REMOVE child occurrences that can be in the list, or they will be doubled in generating the link -> larger mesh, wrong weight and moments of inertia
                         #logging.debug(dir(linkselInput.selection(i).entity))
             ## if i ever get to use inputs
 #            tableInput = inputs.itemById('table')
@@ -334,7 +360,7 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
             
             urdfroot = etree.Element("robot", name = "gummi")
             
-            currentlink.save_to_stl3(meshes_directory)
+            currentlink.genlink(meshes_directory)
             #currentlink.name = linkInput.value
             currentlink.makelinkxml(urdfroot)            
             
