@@ -18,6 +18,89 @@ _linkname = 'link' + str(_linknum)
 
 # Global set of event handlers to keep them referenced for the duration of the command
 _handlers = []
+_thistree = None
+
+class UrdfTree:
+    def __init__(self):
+        self.elementsdict = {}
+        self.currentel = None
+
+    def addLink(self, linkname,linknum):
+        thislink = Link(linkname,linknum) 
+        self.elementsdict.update({linknum:thislink})
+        
+    def addJoint(self, jointname,jointnum):
+        thisjoint = Joint(jointname,jointnum) 
+        self.elementsdict.update({jointnum:thisjoint})
+        
+    def rmLink(self,linknum):
+        self.elementslist.pop(linknum)
+        self.elementsIDlist.pop(linknum)
+        
+    def allLinks(self):
+        exstr = ''
+        nolinks = True
+        alllinks = []
+        for el in self.elementsdict:
+            if 'isLink' in dir(self.elementsdict[el]) and self.elementsdict[el].isLink:
+                exstr = exstr +'link: ' + self.elementsdict[el].name + '\n'
+                alllinks.append(self.elementsdict[el])
+                nolinks = False
+        if nolinks:
+            exstr = 'no links!'
+        return exstr,alllinks
+        
+    def allJoints(self):
+        exstr = ''
+        nojoints = True
+        alljoints = []
+        for el in self.elementsdict:
+            if 'isJoint' in dir(self.elementsdict[el]) and self.elementsdict[el].isJoint:
+                exstr = exstr +'joint: ' + self.elementsdict[el].name + '\n'
+                alljoints.append(self.elementsdict[el])
+                nojoints = False
+        if nojoints:
+            exstr = 'no joints!'
+        return exstr,alljoints
+        
+    def allElements(self):
+        exstr = ''
+        noels = True
+        allels = []
+        for el in self.elementsdict:
+            if 'isJoint' in dir(self.elementsdict[el]) and self.elementsdict[el].isJoint:
+                namename = 'joint: '
+            elif 'isLink' in dir(self.elementsdict[el]) and self.elementsdict[el].isLink:
+                namename = 'link: '
+            else:
+                namename = 'unk: '
+            exstr = exstr + namename + self.elementsdict[el].name + '\n'
+            allels.append(self.elementsdict[el])
+            noels = False
+        if noels:
+            exstr = 'no elements!'
+        return exstr,allels
+        
+    def getel(self,selected):
+        logging.debug('selected' + str(selected))
+        logging.debug('len...' + str(len(self.elementsdict)))
+        if selected not in self.elementsdict:
+            return None
+        else:
+            logging.debug('dic...' + str(self.elementsdict))
+            ## is it in the dict though?
+            return self.elementsdict[selected]
+    def getcurrenteldesc(self):
+        if self.currentel is None:
+            return 'No current element'
+        else:
+            return self.currentel.name +'\n' + self.currentel.getitems()
+        
+    def setcurrentel(self,crnum):
+        thisel = self.getel(crnum)
+        if thisel is not None:
+            self.currentel = thisel
+        
 
 class Inertial:
     def __init__(self):
@@ -52,7 +135,7 @@ class Collision:
         self.geometryfilename = ""
 
 class Link:
-    def __init__(self,occname):
+    def __init__(self,occname,row):
         parent = '' ### incorrect, we need to parse the fullPathName, which should be the way to instantiate this as well!
         #### actually, since i've changed this structure so much, now is not the time to try to set this things correctly...
         level = 0
@@ -64,11 +147,19 @@ class Link:
         self.visual.geometryfilename = ""
         self.collision.geometryfilename = ""
         self.group = []
+        self.isLink = True
+        self.row = row
     def __groupmembers(self,rigidgrouplist):
         self.group = rigidgrouplist.getgroupmemberships(self.name)
         return rigidgrouplist.getwholegroup(self.name)
         
-    def makelinkxml(self, urdfroot):
+    def getitems(self):
+        items = ''
+        for el in self.group:
+            items = items + el.name + '\n'
+        return items
+        
+    def makexml(self, urdfroot):
         self.visual.geometryfilename = "package://somepackage/meshes/" + clearupst(self.name) +".stl"
 
         link = etree.SubElement(urdfroot, "link", name= clearupst(self.name))
@@ -213,20 +304,22 @@ class Link:
         
 class Joint:
     # jointdefs = Joint(actualjoint, actualjointname,parentl,childl, currentLevel,parent);
-    def __init__(self,joint,jointname,parentl,childl,level,parent):
+    def __init__(self,jointname,row):
+        level= 0
+        self.name = jointname
         self.origin = OrVec()
-        self.parentlinkrealname = parentl
-        self.childlinkrealname = childl
-        self.parentlink = clearupst(self.parentlinkrealname)
-        self.childlink = clearupst(self.childlinkrealname)
+        self.parentlink = ''
+        self.childlink = ''
         self.axis = '0 0 0'
         self.limit = Limit()
         self.level = level
-        self.name = jointname
-        superprint(self.level, 'joint: my name is:' + self.name)
-        superprint(self.level, 'my parent link is' + self.parentlink)
-        superprint(self.level, 'my child link is' + self.childlink)
-        logging.debug( inspect.stack())
+        self.type = ''
+        self.row = row # i am not sure why i am savign this...
+        self.isJoint = True
+    def setjoint(self,joint):#,parentl,childl):
+        #self.parentlink = parentl
+        #self.childlink = childl
+        
         #python doesnt have a switch statement, i repeat python does not have a switch statement...
         #from the docs, we should implement this:
         #Name     Value     Description
@@ -242,18 +335,23 @@ class Joint:
             self.axis = str(joint.jointMotion.rotationAxisVector.x)+ ' ' + str(joint.jointMotion.rotationAxisVector.y)+ ' ' + str(joint.jointMotion.rotationAxisVector.z)
         if joint.jointMotion.jointType is 0:
             self.type = "fixed"
-
+        
+        haslimits = False
         if 'rotationLimits' in dir(joint.jointMotion):
             if joint.jointMotion.rotationLimits.isMinimumValueEnabled:
                 self.limit.lower = joint.jointMotion.rotationLimits.minimumValue
+                haslimits = True
             if joint.jointMotion.rotationLimits.isMaximumValueEnabled:
                 self.limit.upper = joint.jointMotion.rotationLimits.maximumValue
+                haslimits = True
+        if self.type == "revolute" and not haslimits:
+            self.type = "wheel"
+            
+    def getitems(self):
+        items = 'parent:' + self.parentlink + '\n' + 'child:' + self.childlink        
+        return items
 
-    def updatename(self):
-        self.parentlink = clearupst(self.parentlinkrealname)
-        self.childlink = clearupst(self.childlinkrealname)
-
-    def makejointxml(self, urdfroot):
+    def makexml(self, urdfroot):
 
         joint = etree.SubElement(urdfroot, "joint", name= clearupst(self.name), type = self.type)
         etree.SubElement(joint, "origin", xyz = self.origin.xyz, rpy = self.origin.rpy)
@@ -294,42 +392,192 @@ def spaces(spaceCount):
     return result
 
 
+# Adds a new row to the table.
+def addRowToTable(tableInput):
+    # Get the CommandInputs object associated with the parent command.
+    cmdInputs = adsk.core.CommandInputs.cast(tableInput.commandInputs)
+    
+    # Create three new command inputs.
+    #valueInput = cmdInputs.addTextBoxCommandInput('TableInput_value{}'.format(_rowNumber), 'JorL', 'Link',1,True)
+    JorLInput = cmdInputs.addDropDownCommandInput('TableInput_value{}'.format(_rowNumber), 'JorLTable{}'.format(_rowNumber), adsk.core.DropDownStyles.TextListDropDownStyle)
+    dropdownItems = JorLInput.listItems
+    dropdownItems.add('Link', True, '')
+    dropdownItems.add('Joint', False,'')   
+    stringInput =  cmdInputs.addStringValueInput('TableInput_string{}'.format(_rowNumber), 'StringTable{}'.format(_rowNumber), 'link' + str(_rowNumber))
+    elnnumInput =  cmdInputs.addStringValueInput('elnum{}'.format(_rowNumber), 'elnumTable{}'.format(_rowNumber), str(_rowNumber))
+    #spinnerInput = cmdInputs.addIntegerSpinnerCommandInput('spinnerInt{}'.format(_rowNumber), 'Integer Spinner', 0 , 100 , 2, int(_rowNumber))
+    slbutInput = cmdInputs.addBoolValueInput('butselectClick{}'.format(_rowNumber),'Select',  False,'', True)
+ 
+    
+    
+    elnnumInput.isEnabled = False
+    # Add the inputs to the table.
+    row = tableInput.rowCount
+    tableInput.addCommandInput( elnnumInput, row, 0)
+    tableInput.addCommandInput(JorLInput, row, 1)
+    #tableInput.addCommandInput(valueInput, row, 0)
+    tableInput.addCommandInput(stringInput, row, 2)
+    #tableInput.addCommandInput(spinnerInput, row, 2)
+    tableInput.addCommandInput(slbutInput, row, 3)
+    
+    # Increment a counter used to make each row unique.
+    global _rowNumber, _thistree
+    _rowNumber = _rowNumber + 1
+    
+    
+
 # Event handler that reacts to any changes the user makes to any of the command inputs.
 class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
         try:
+            global _thistree, currentel        
+            
             eventArgs = adsk.core.InputChangedEventArgs.cast(args)
             inputs = eventArgs.inputs
             cmdInput = eventArgs.input
             
-            linkInput = inputs.itemById('linkname')
-            linkselInput = inputs.itemById('linkselection') 
-            if cmdInput.id == 'linkname':
-                currentlink.name = linkInput.value
-            elif cmdInput.id == 'linkselection':
+            #linkInput = inputs.itemById('linkname')
+            JorLNameInput = inputs.itemById('StringTable')
+
+            tableInput = inputs.itemById('table')
+            debugInput = inputs.itemById('debugbox')
+            linkgroupInput = inputs.itemById('linkgroup')
+            jointgroupInput = inputs.itemById('jointgroup')
+            
+            if linkgroupInput is None: ###inside the group, there is no group!
+                linkselInput = inputs.itemById('linkselection') 
+            else:
+                linkselInput = linkgroupInput.children.itemById('linkselection') 
+            
+            if jointgroupInput is None: ###inside the group, there is no group!
+                jointselInput = inputs.itemById('jointselection') 
+            else:
+                jointselInput = jointgroupInput.children.itemById('jointselection')             
+            
+            if _thistree.currentel is not None:
+                oldrow = _thistree.currentel.row
+            else:
+                oldrow = -1
+                
+            
+            
+################################################################
+            # set current link
+            ### if working in main context:
+            if tableInput is not None:
+                setcurrel(tableInput.selectedRow,debugInput)
+                
+                if _thistree.currentel is not None and  _thistree.currentel.row != oldrow:
+                    linkselInput.clearSelection()
+                
+                
+                crnum = getrow('TableInput_value', cmdInput.id, tableInput.selectedRow,debugInput)
+                if crnum and tableInput.selectedRow != -1 and tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint':
+                    tableInput.getInputAtPosition(tableInput.selectedRow,2).value = 'joint'+crnum
+    
+                    #JorLTableInput
+                    ### if it is different from what it was before, then i should change the name, right?
+                    #_ui.messageBox('changedstuff! in row' + rowrow)
+                crnum = getrow('butselectClick', cmdInput.id, tableInput.selectedRow,debugInput)
+                if crnum:
+                    linkselInput.clearSelection()
+                if cmdInput.id == 'tableCreate' and  tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled:           
+    
+                    tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled = False
+                    ### and create stuff!!!
+                    if tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Link':
+                        linkname = tableInput.getInputAtPosition(tableInput.selectedRow,2).value
+                        logging.debug('adding link:' + str(linkname))
+                        _thistree.addLink(linkname,tableInput.selectedRow)
+                        setcurrel(tableInput.selectedRow,debugInput)
+                    elif tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint':
+                        jointname = tableInput.getInputAtPosition(tableInput.selectedRow,2).value
+                        logging.debug('adding joint:' + str(jointname))
+                        _thistree.addJoint(jointname,tableInput.selectedRow)
+                        setcurrel(tableInput.selectedRow,debugInput)
+                        
+                crnum = getrow('TableInput_string', cmdInput.id, tableInput.selectedRow,debugInput)
+                if crnum:  
+                    pass
+                
+                if cmdInput.id == 'tableAdd':
+                    addRowToTable(tableInput)
+                elif cmdInput.id == 'tableDelete':
+                    if tableInput.selectedRow == -1:
+                        _ui.messageBox('Select one row to delete.')
+                    else:
+    
+                        _thistree.elementsdict.pop(tableInput.selectedRow)
+                        tableInput.deleteRow(tableInput.selectedRow)
+                        
+                ### setting up visibility of joint and link group selection stufffs:
+                if tableInput.selectedRow!= -1 and not tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled and  tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Link':
+                    
+                    linkgroupInput.isVisible = True
+                    jointgroupInput.isVisible = False
+                if tableInput.selectedRow!= -1 and not tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled and  tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint':
+                    
+                    linkgroupInput.isVisible = False
+                    jointgroupInput.isVisible = True
+                    pln = jointgroupInput.children.itemById('parentlinkname')
+                    cln = jointgroupInput.children.itemById('childlinkname')
+                    alllinkstr, _ = _thistree.allLinks()
+                    alllinkgr = alllinkstr.split('\n')
+                    for link in  alllinkgr:
+                        pln.listItems.add(link, False,'')
+                        cln.listItems.add(link, False,'')
+                        
+            if cmdInput.id == 'linkselection':
                 #### wait, i think i can export a selection! so...
-                currentlink.group = []
+                #### so, if I try to select things without having set anything, it jumps here into linkselection. I don't want this to happen, so i will make it create a ballon to warn it
+                if 'group' not in dir(_thistree.currentel):
+                    _ui.messageBox('Must create link or joint before selecting!')
+                    return
+                _thistree.currentel.group = [] #### i refer to element, but i know it is a link!
                 for i in range(0, linkselInput.selectionCount):
-                    if linkselInput.selection(i).entity not in currentlink.group:
-                        currentlink.group.append( linkselInput.selection(i).entity)
+                    if linkselInput.selection(i).entity not in _thistree.currentel.group:
+                        _thistree.currentel.group.append( linkselInput.selection(i).entity)
                         ##TODO:
                         # REMOVE child occurrences that can be in the list, or they will be doubled in generating the link -> larger mesh, wrong weight and moments of inertia
                         #logging.debug(dir(linkselInput.selection(i).entity))
-            ## if i ever get to use inputs
-#            tableInput = inputs.itemById('table')
-#            if cmdInput.id == 'tableAdd':
-#                addRowToTable(tableInput)
-#            elif cmdInput.id == 'tableDelete':
-#                if tableInput.selectedRow == -1:
-#                    _ui.messageBox('Select one row to delete.')
-#                else:
-#                    tableInput.deleteRow(tableInput.selectedRow)
-          
+            if cmdInput.id == 'parentlinkname':
+                pln = inputs.itemById('parentlinkname')
+                aa= pln.selectedItem.name.split('link: ')
+                _thistree.currentel.parentlink = aa[1]
+                
+            if cmdInput.id == 'childlinkname':
+                cln = inputs.itemById('childlinkname')
+                aa= cln.selectedItem.name.split('link: ')
+                _thistree.currentel.childlink = aa[1]
+
+            if cmdInput.id == 'jointselection':
+               _thistree.currentel.setjoint( jointselInput.selection(0).entity)
+                        ##TODO:
+                        # REMOVE child occurrences that can be in the list, or they will be doubled in generating the link -> larger mesh, wrong weight and moments of inertia
+                        #logging.debug(dir(linkselInput.selection(i).entity))
+            
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
+
+def setcurrel(tbsr,dbi):
+    global _thistree
+    _thistree.setcurrentel(tbsr)
+    alllinkstr, _ = _thistree.allLinks()
+    dbi.text ='current element: '+ _thistree.getcurrenteldesc() + '\n' +  '\n' + alllinkstr
+
+def getrow(commandstr,cmdid, tbsr, debugInput):
+    if commandstr in cmdid:
+        _, crnum = cmdid.split(commandstr)
+        #_thistree.setcurrentlink(tbsr)
+        #print('this when accessing table row' + crnum + str(tbsr))
+        #        logging.debug('this when accessing table row' + crnum + str(tbsr))
+
+        return crnum
+    else:
+        return False
 
 # Event handler that reacts to when the command is destroyed. This terminates the script.            
 class AddLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
@@ -353,6 +601,7 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
         super().__init__()
     def notify(self, args):
         try:
+            global _thistree
             #eventArgs = adsk.core.CommandEventArgs.cast(args)    
             #inputs = eventArgs.inputs
             #cmdInput = eventArgs.input
@@ -360,9 +609,15 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
             
             urdfroot = etree.Element("robot", name = "gummi")
             
-            currentlink.genlink(meshes_directory)
+#            _thistree.currentlink.genlink(meshes_directory)
+#            #currentlink.name = linkInput.value
+#            _thistree.currentlink.makelinkxml(urdfroot)      
+            _, allels =  _thistree.allElements()
+            for i in range(0,len(allels)):
+                if 'isLink' in dir(allels[i]) and allels[i].isLink:
+                    allels[i].genlink(meshes_directory)
             #currentlink.name = linkInput.value
-            currentlink.makelinkxml(urdfroot)            
+                allels[i].makexml(urdfroot)    
             
             tree = etree.ElementTree(urdfroot)
             root = tree.getroot()
@@ -409,35 +664,67 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             _handlers.append(onExecute)
 
             # Get the CommandInputs collection associated with the command.
-            inputs = cmd.commandInputs
+            inputs = cmd.commandInputs           
+            
 
             # Create a tab input.
             tabCmdInput3 = inputs.addTabCommandInput('tab_1', 'Add Link')
             tab3ChildInputs = tabCmdInput3.children
+            
+            # Create table input
+            tableInput = tab3ChildInputs.addTableCommandInput('table', 'Table', 3, '1:2:3:1')
+            addRowToTable(tableInput)
+
+            # Add inputs into the table.            
+            addButtonInput = tab3ChildInputs.addBoolValueInput('tableAdd', 'Add', False, '', True)
+            tableInput.addToolbarCommandInput(addButtonInput)
+            deleteButtonInput = tab3ChildInputs.addBoolValueInput('tableDelete', 'Delete', False, '', True)
+            tableInput.addToolbarCommandInput(deleteButtonInput)
+            createButtonInput = tab3ChildInputs.addBoolValueInput('tableCreate', 'Create', False, '', True)
+            tableInput.addToolbarCommandInput(createButtonInput)
             
             # Create a read only textbox input.
             #tab1ChildInputs.addTextBoxCommandInput('readonly_textBox', 'URDF TREE', 'this would be the tree', 10, True)
 
           
             # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
-            message = '<div align="center">A "full width" message using <a href="http:fusion360.autodesk.com">html.</a></div>'
+            message = '<div align="center">For more information on how to create an URDF, visit <a href="http:lmgtfy.com/?q=how+to+create+an+urdf">our website.</a></div>'
             tab3ChildInputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)            
 
+            # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
+            messaged = 'debugbox stuff'
+            tab3ChildInputs.addTextBoxCommandInput('debugbox', '', messaged, 10, True)            
+
+            # add group for link stuff            
+            mylinkgroup = tab3ChildInputs.addGroupCommandInput('linkgroup', 'Link stuff' )
+            mylinkgroup.isVisible = False
             
             # Create a selection input.
-            selectionInput1 = tab3ChildInputs.addSelectionInput('linkselection', 'Select Link Components', 'Basic select command input')
+            selectionInput1 = mylinkgroup.children.addSelectionInput('linkselection', 'Select Link Components', 'Basic select command input')
             selectionInput1.addSelectionFilter('Occurrences')
             selectionInput1.setSelectionLimits(0)
-
+            
+            # add group for link stuff            
+            myjointgroup = tab3ChildInputs.addGroupCommandInput('jointgroup', 'Joint stuff' )
+            myjointgroup.isVisible = False
+            
+            
+            # Create a selection input.
+            selectionInput2 =myjointgroup.children.addSelectionInput('jointselection', 'Select Joint', 'Basic select command input')
+            selectionInput2.addSelectionFilter('Joints')
+            selectionInput2.setSelectionLimits(1)
+            selectionInput2.isEnabled = False
+            
             # Create a string value input.
-            strInput = tab3ChildInputs.addStringValueInput('linkname', 'Name of link', _linkname)
-
-
+            parentlinkin = myjointgroup.children.addDropDownCommandInput('parentlinkname', 'Name of parent link', 1)
+                        
+            childlinkin = myjointgroup.children.addDropDownCommandInput('childlinkname', 'Name of child link', 1)
+            
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-currentlink = Link(_linkname)
+
 base_directory = "c:/test_gummi_urdf2"
 if not os.path.exists(base_directory):
     os.makedirs(base_directory)
@@ -448,7 +735,7 @@ if not os.path.exists(meshes_directory):
 
 def run(context):
     try:
-        global _app, _ui, _design
+        global _app, _ui, _design, _thistree
         _app = adsk.core.Application.get()
         _ui = _app.userInterface
         product = _app.activeProduct
@@ -461,12 +748,14 @@ def run(context):
         # Get the existing command definition or create it if it doesn't already exist.
         addlinkcmdDef = _ui.commandDefinitions.itemById('cmdInputsAddLink')
         if not addlinkcmdDef:
-            addlinkcmdDef = _ui.commandDefinitions.addButtonDefinition('cmdInputsAddLink', 'Add Link', 'My attempt to add a link.')
+            addlinkcmdDef = _ui.commandDefinitions.addButtonDefinition('cmdInputsAddLink', 'Make URDF', 'My attempt to make an URDF.')
 
         # Connect to the command created event.
         onCommandCreated = AddLinkCommandCreatedHandler()
         addlinkcmdDef.commandCreated.add(onCommandCreated)
         _handlers.append(onCommandCreated)
+        
+        _thistree = UrdfTree()
                
         # Execute the command definition.
         addlinkcmdDef.execute()
