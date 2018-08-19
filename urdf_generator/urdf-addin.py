@@ -123,7 +123,7 @@ class OrVec:
         self.xyz = '0 0 0'
         self.rpy = '0 0 0'
     def setxyz(self,x,y,z):
-        self.xyz = str(x) + str(y) + str(z)
+        self.xyz = str(x)+' ' + str(y)+' ' + str(z)
 
 class Visual:
     def __init__(self):
