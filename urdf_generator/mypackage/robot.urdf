@@ -1,0 +1,200 @@
+<?xml version="1.0" ?>
+<robot name="gummi">
+	<link name="base_link">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+		</inertial>
+		<visual>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/base_link.stl"/>
+			</geometry>
+			<material name="">
+				<color rgba="0 0 0 1"/>
+			</material>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/base_link.stl"/>
+			</geometry>
+		</collision>
+	</link>
+	<link name="link1">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+		</inertial>
+		<visual>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link1.stl"/>
+			</geometry>
+			<material name="">
+				<color rgba="0 0 0 1"/>
+			</material>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link1.stl"/>
+			</geometry>
+		</collision>
+	</link>
+	<link name="link2">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+		</inertial>
+		<visual>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link2.stl"/>
+			</geometry>
+			<material name="">
+				<color rgba="0 0 0 1"/>
+			</material>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link2.stl"/>
+			</geometry>
+		</collision>
+	</link>
+	<link name="link3">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+		</inertial>
+		<visual>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link3.stl"/>
+			</geometry>
+			<material name="">
+				<color rgba="0 0 0 1"/>
+			</material>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link3.stl"/>
+			</geometry>
+		</collision>
+	</link>
+	<link name="link4">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+		</inertial>
+		<visual>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link4.stl"/>
+			</geometry>
+			<material name="">
+				<color rgba="0 0 0 1"/>
+			</material>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link4.stl"/>
+			</geometry>
+		</collision>
+	</link>
+	<link name="link5">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+		</inertial>
+		<visual>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link5.stl"/>
+			</geometry>
+			<material name="">
+				<color rgba="0 0 0 1"/>
+			</material>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link5.stl"/>
+			</geometry>
+		</collision>
+	</link>
+	<link name="link6">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+		</inertial>
+		<visual>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link6.stl"/>
+			</geometry>
+			<material name="">
+				<color rgba="0 0 0 1"/>
+			</material>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link6.stl"/>
+			</geometry>
+		</collision>
+	</link>
+	<joint name="joint7" type="continuous">
+		<origin rpy="0 0 0" xyz="3.552713678800501e-15-2.3665827156630354e-30-4.440892098500626e-16"/>
+		<parent link="base_link"/>
+		<child link="link1"/>
+		<axis xyz="0.0 1.0 0.0"/>
+		<limit effort="0" lower="-1" upper="1" velocity="0"/>
+	</joint>
+	<joint name="joint8" type="continuous">
+		<origin rpy="0 0 0" xyz="-1.7763568394002505e-1412.800000000000033-2.4868995751603507e-14"/>
+		<parent link="link1"/>
+		<child link="link2"/>
+		<axis xyz="-3.400058012914542e-16 -1.0475804435582063e-16 -1.0000000000000004"/>
+		<limit effort="0" lower="-1" upper="1" velocity="0"/>
+	</joint>
+	<joint name="joint9" type="continuous">
+		<origin rpy="0 0 0" xyz="9.769962616701378e-1512.800000000000047-13.400000000000036"/>
+		<parent link="link2"/>
+		<child link="link3"/>
+		<axis xyz="-0.9999999999999994 2.2204460492503116e-16 -3.677613769070831e-16"/>
+		<limit effort="0" lower="-1" upper="1" velocity="0"/>
+	</joint>
+	<joint name="joint10" type="continuous">
+		<origin rpy="0 0 0" xyz="-3.00000000000008176.4500000000001165-13.400000000000052"/>
+		<parent link="link4"/>
+		<child link="link5"/>
+		<axis xyz="-1.634803403760541e-14 -0.9999999999999962 1.0475804435583023e-16"/>
+		<limit effort="0" lower="-1" upper="1" velocity="0"/>
+	</joint>
+	<joint name="joint11" type="continuous">
+		<origin rpy="0 0 0" xyz="-3.000000000000089-17.3499999999998-13.400000000000077"/>
+		<parent link="link5"/>
+		<child link="link6"/>
+		<axis xyz="1.0000000000000009 8.062965342091539e-18 9.714451465470163e-17"/>
+		<limit effort="0" lower="-1" upper="1" velocity="0"/>
+	</joint>
+	<joint name="joint12" type="continuous">
+		<origin rpy="0 0 0" xyz="-3.000000000000089-17.3499999999998-13.400000000000077"/>
+		<parent link="link5"/>
+		<child link="link6"/>
+		<axis xyz="1.0000000000000009 8.062965342091539e-18 9.714451465470163e-17"/>
+		<limit effort="0" lower="-1" upper="1" velocity="0"/>
+	</joint>
+</robot>
+
