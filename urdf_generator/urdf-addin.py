@@ -15,6 +15,7 @@ _design = None
 _rowNumber = 0
 _linknum = 0
 _linkname = 'link' + str(_linknum)
+packagename = 'mypackage'
 
 # Global set of event handlers to keep them referenced for the duration of the command
 _handlers = []
@@ -121,6 +122,8 @@ class OrVec:
     def __init__(self):
         self.xyz = '0 0 0'
         self.rpy = '0 0 0'
+    def setxyz(self,x,y,z):
+        self.xyz = str(x) + str(y) + str(z)
 
 class Visual:
     def __init__(self):
@@ -160,7 +163,7 @@ class Link:
         return items
         
     def makexml(self, urdfroot):
-        self.visual.geometryfilename = "package://somepackage/meshes/" + clearupst(self.name) +".stl"
+        self.visual.geometryfilename = "package://"+packagename+"/meshes/" + clearupst(self.name) +".stl"
 
         link = etree.SubElement(urdfroot, "link", name= clearupst(self.name))
         
@@ -187,7 +190,7 @@ class Link:
         return urdfroot
         
 
-    def genlink(self, meshes_directory):
+    def genlink(self,meshes_directory, components_directory):
         didifail = 0        
         
         try:            
@@ -234,10 +237,10 @@ class Link:
             #line = re.sub('[!@#$]', '', line)
             stlname = clearupst(self.name)
             
-            fileName = meshes_directory+'/' + stlname
+            #fileName = components_directory+'/' + stlname
             for i in range(0,len(self.group)):
                 # export the root component to printer utility
-                fileName = meshes_directory+'/' + stlname+str(i)
+                fileName = components_directory+'/' + stlname+str(i)
                 logging.info('saving file '+fileName )
                 logging.info('from occurrence' + self.group[i].fullPathName)
                 
@@ -254,7 +257,19 @@ class Link:
             # Get the root component of the active design
             rootComp = design.rootComponent
             
-            
+            #### i need to divide it by 1000, actually transform it from whatever unit the original drawing was on, into SI, i.e. meters, since that is what rviz and ros use. I will do this using another transformation:
+#            mytransf = adsk.core.Matrix3D.create()
+#            mytransf.setToIdentity()
+#            global thisdocsunits
+#            if thisdocsunits == "mm":
+#                myscaleratio = 1/1000
+#            elif thisdocsunits == "cm":
+#                myscaleratio = 1/100
+#            mytransf.setCell(1,1,myscaleratio)
+#            mytransf.setCell(2,2,myscaleratio)
+#            mytransf.setCell(3,3,myscaleratio)
+            ###turns out this a nonuniform transform and fusion has a check against letting you do this. i can't turn it off, or so it seems
+            ###TODO: this needs to be done for the joints as well. aff...
     
             # Create two new components under root component
             allOccs = rootComp.occurrences   
@@ -264,18 +279,24 @@ class Link:
             
             #### add occurrances from other stuff to this new stuff
             for i in range(0,len(self.group)):
-                fileName = meshes_directory+'/' + stlname+str(i)+'.stp'
+                fileName = components_directory+'/' + stlname+str(i)+'.stp'
                 logging.info('loading file: '+fileName)
                 stpOptions = importManager.createSTEPImportOptions(fileName)
                 importManager.importToTarget(stpOptions, rootComp)
             for i in range(0,len(rootComp.occurrences)):
-                rootComp.occurrences.item(i).transform = eval('it'+str(i))
+                thistransf = eval('it'+str(i))
+                ## i also want to scale them to SI units. doing it here is easier
+                #thistransf.transformBy(mytransf)    
+                rootComp.occurrences.item(i).transform = thistransf
+                #rootComp.occurrences.item(i).transform = eval('it'+str(i))
                 pass
             
             ###TODO:
             ### must set mass and center of inertia! i think visual and origins are correct because this info is in the stl...
             logging.info('XYZ moments of inertia:'+str(rootComp.physicalProperties.getXYZMomentsOfInertia()))
             logging.info('Mass:'+str(rootComp.physicalProperties.mass))
+            
+                        
             
             # create aNOTHER! exportManager instance
             exportMgr = design.exportManager
@@ -294,7 +315,7 @@ class Link:
     
             exportMgr.execute(stlRootOptions)            
             
-            self.visual.geometryfilename = "package://somepackage/meshes/" + stlname +".stl"
+            self.visual.geometryfilename = "package://"+packagename+"/meshes/" + stlname +".stl"
             self.collision.geometryfilename = self.visual.geometryfilename # the legend has it that this file should be a slimmer version of the visuals, so that collisions can be calculated more easily....       
     
         except:
@@ -307,6 +328,7 @@ class Joint:
     def __init__(self,jointname,row):
         level= 0
         self.name = jointname
+        self.generatingjointname = ''
         self.origin = OrVec()
         self.parentlink = ''
         self.childlink = ''
@@ -317,6 +339,7 @@ class Joint:
         self.row = row # i am not sure why i am savign this...
         self.isJoint = True
     def setjoint(self,joint):#,parentl,childl):
+        self.generatingjointname = joint.name
         #self.parentlink = parentl
         #self.childlink = childl
         
@@ -330,6 +353,8 @@ class Joint:
         #RevoluteJointType     1     Specifies a revolute type of joint.
         #RigidJointType     0     Specifies a rigid type of joint.
         #SliderJointType     2     Specifies a slider type of joint.
+        self.origin.setxyz(joint.geometryOrOriginOne.origin.x, joint.geometryOrOriginOne.origin.y, joint.geometryOrOriginOne.origin.z)
+        ### TODO so I am not using the base occurrences to set this joint - i am not using .geometryOrOriginTwo for anythin - so I might be making mistakes in prismatic joints - who uses those??? - so I should check to see if they are same and warn at least in case they are not...
         if joint.jointMotion.jointType is 1:
             self.type = "revolute"
             self.axis = str(joint.jointMotion.rotationAxisVector.x)+ ' ' + str(joint.jointMotion.rotationAxisVector.y)+ ' ' + str(joint.jointMotion.rotationAxisVector.z)
@@ -345,10 +370,10 @@ class Joint:
                 self.limit.upper = joint.jointMotion.rotationLimits.maximumValue
                 haslimits = True
         if self.type == "revolute" and not haslimits:
-            self.type = "wheel"
+            self.type = "continuous"
             
     def getitems(self):
-        items = 'parent:' + self.parentlink + '\n' + 'child:' + self.childlink        
+        items = 'genjn:'+self.generatingjointname+'\n'+'parent:' + self.parentlink + '\t' + 'child:' + self.childlink        
         return items
 
     def makexml(self, urdfroot):
@@ -403,7 +428,12 @@ def addRowToTable(tableInput):
     dropdownItems = JorLInput.listItems
     dropdownItems.add('Link', True, '')
     dropdownItems.add('Joint', False,'')   
-    stringInput =  cmdInputs.addStringValueInput('TableInput_string{}'.format(_rowNumber), 'StringTable{}'.format(_rowNumber), 'link' + str(_rowNumber))
+    if _rowNumber == 0:
+        rightlinkname = 'base_link'        
+    else:
+        rightlinkname = 'link' + str(_rowNumber)
+        
+    stringInput =  cmdInputs.addStringValueInput('TableInput_string{}'.format(_rowNumber), 'StringTable{}'.format(_rowNumber), rightlinkname)
     elnnumInput =  cmdInputs.addStringValueInput('elnum{}'.format(_rowNumber), 'elnumTable{}'.format(_rowNumber), str(_rowNumber))
     #spinnerInput = cmdInputs.addIntegerSpinnerCommandInput('spinnerInt{}'.format(_rowNumber), 'Integer Spinner', 0 , 100 , 2, int(_rowNumber))
     slbutInput = cmdInputs.addBoolValueInput('butselectClick{}'.format(_rowNumber),'Select',  False,'', True)
@@ -467,14 +497,10 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
             # set current link
             ### if working in main context:
             if tableInput is not None:
-                setcurrel(tableInput.selectedRow,debugInput)
-                
-                if _thistree.currentel is not None and  _thistree.currentel.row != oldrow:
-                    linkselInput.clearSelection()
-                
+                setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
                 
                 crnum = getrow('TableInput_value', cmdInput.id, tableInput.selectedRow,debugInput)
-                if crnum and tableInput.selectedRow != -1 and tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint':
+                if crnum and tableInput.selectedRow != -1 and tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint' and tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled:
                     tableInput.getInputAtPosition(tableInput.selectedRow,2).value = 'joint'+crnum
     
                     #JorLTableInput
@@ -491,16 +517,20 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                         linkname = tableInput.getInputAtPosition(tableInput.selectedRow,2).value
                         logging.debug('adding link:' + str(linkname))
                         _thistree.addLink(linkname,tableInput.selectedRow)
-                        setcurrel(tableInput.selectedRow,debugInput)
+                        setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
                     elif tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint':
                         jointname = tableInput.getInputAtPosition(tableInput.selectedRow,2).value
                         logging.debug('adding joint:' + str(jointname))
                         _thistree.addJoint(jointname,tableInput.selectedRow)
-                        setcurrel(tableInput.selectedRow,debugInput)
+                        setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
                         
                 crnum = getrow('TableInput_string', cmdInput.id, tableInput.selectedRow,debugInput)
                 if crnum:  
                     pass
+                
+                if cmdInput.id == 'packagename':
+                    pkgnInput = inputs.itemById('packagename')
+                    packagename = pkgnInput.text
                 
                 if cmdInput.id == 'tableAdd':
                     addRowToTable(tableInput)
@@ -525,6 +555,8 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     cln = jointgroupInput.children.itemById('childlinkname')
                     alllinkstr, _ = _thistree.allLinks()
                     alllinkgr = alllinkstr.split('\n')
+                    pln.listItems.clear()
+                    cln.listItems.clear()
                     for link in  alllinkgr:
                         pln.listItems.add(link, False,'')
                         cln.listItems.add(link, False,'')
@@ -552,21 +584,25 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 aa= cln.selectedItem.name.split('link: ')
                 _thistree.currentel.childlink = aa[1]
 
-            if cmdInput.id == 'jointselection':
+            if cmdInput.id == 'jointselection' and jointselInput.selectionCount == 1:
                _thistree.currentel.setjoint( jointselInput.selection(0).entity)
-                        ##TODO:
-                        # REMOVE child occurrences that can be in the list, or they will be doubled in generating the link -> larger mesh, wrong weight and moments of inertia
-                        #logging.debug(dir(linkselInput.selection(i).entity))
             
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def setcurrel(tbsr,dbi):
+def setcurrel(tbsr,dbi, oldrow, linkselInput, jointselInput):
     global _thistree
     _thistree.setcurrentel(tbsr)
-    alllinkstr, _ = _thistree.allLinks()
-    dbi.text ='current element: '+ _thistree.getcurrenteldesc() + '\n' +  '\n' + alllinkstr
+    if _thistree.currentel is not None:
+        row = _thistree.currentel.row
+        if row != oldrow:
+            linkselInput.clearSelection()
+            jointselInput.clearSelection()                
+    else:
+        row = oldrow
+    alllinkstr, _ = _thistree.allElements()
+    dbi.text =str(oldrow)+'\t'+str(row)+'\n'+'current element: '+ _thistree.getcurrenteldesc() +  '\n' + alllinkstr
 
 def getrow(commandstr,cmdid, tbsr, debugInput):
     if commandstr in cmdid:
@@ -606,6 +642,7 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
             #inputs = eventArgs.inputs
             #cmdInput = eventArgs.input
     
+            base_directory, meshes_directory, components_directory = createpaths(packagename)
             
             urdfroot = etree.Element("robot", name = "gummi")
             
@@ -615,7 +652,7 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
             _, allels =  _thistree.allElements()
             for i in range(0,len(allels)):
                 if 'isLink' in dir(allels[i]) and allels[i].isLink:
-                    allels[i].genlink(meshes_directory)
+                    allels[i].genlink(meshes_directory, components_directory)
             #currentlink.name = linkInput.value
                 allels[i].makexml(urdfroot)    
             
@@ -630,6 +667,8 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
             #prettytree = etree();
             #prettytree = etree.fromstring(pretty_xml_as_string)
             #prettytree.write("c:/test/robot.urdf")
+            
+            
     
             with open(base_directory +"/robot.urdf", "w") as text_file:
                 print(pretty_xml_as_string, file=text_file)
@@ -671,6 +710,8 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             tabCmdInput3 = inputs.addTabCommandInput('tab_1', 'Add Link')
             tab3ChildInputs = tabCmdInput3.children
             
+            
+            tab3ChildInputs.addStringValueInput('packagename','Name of your URDF package', packagename)
             # Create table input
             tableInput = tab3ChildInputs.addTableCommandInput('table', 'Table', 3, '1:2:3:1')
             addRowToTable(tableInput)
@@ -688,11 +729,11 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
           
             # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
-            message = '<div align="center">For more information on how to create an URDF, visit <a href="http:lmgtfy.com/?q=how+to+create+an+urdf">our website.</a></div>'
-            tab3ChildInputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)            
+            #message = '<div align="center">For more information on how to create an URDF, visit <a href="http:lmgtfy.com/?q=how+to+create+an+urdf">our website.</a></div>'
+            #tab3ChildInputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)            
 
             # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
-            messaged = 'debugbox stuff'
+            messaged = ''
             tab3ChildInputs.addTextBoxCommandInput('debugbox', '', messaged, 10, True)            
 
             # add group for link stuff            
@@ -724,26 +765,66 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
+def createpaths(packagename):
+    folderDlg = _ui.createFolderDialog()
+    folderDlg.title = 'Choose location to save your URDF new package' 
+    folderDlg.initialDirectory = os.path.join(os.path.expanduser("~"),'Documents')
+    dlgResult = folderDlg.showDialog()
+    if dlgResult != adsk.core.DialogResults.DialogOK:
+        _ui.messageBox('you need to select a folder!')
+        raise ValueError('Directory not selected. cannot continue.')
+    outputdir = os.path.join(folderDlg.folder,packagename)
+    thisscriptpath = os.path.dirname(os.path.realpath(__file__))
+    base_directory = os.path.abspath(outputdir)
+    _ui.messageBox(base_directory)
+    if not os.path.exists(base_directory):
+        os.makedirs(base_directory)
+    meshes_directory = os.path.join(base_directory, "meshes/")
+    _ui.messageBox( meshes_directory)
+    components_directory =  os.path.join(base_directory, "components/")
+    _ui.messageBox(components_directory)
+    if not os.path.exists(meshes_directory):
+        os.makedirs(meshes_directory)    
+    if not os.path.exists(components_directory):
+        os.makedirs(components_directory)    
+        
+    filestochange = ['display.launch', 'urdf_.rviz', 'package.xml', 'CMakeLists.txt' ] ##actually urdf.rviz is the same, but i didnt want to make another method just to copy. when i have more files i need to copy i will do it. 
+    #myfilename = 'display.launch'
+    for myfilename in filestochange:
+        # Read in the file
+        #_ui.messageBox(thisscriptpath)
+        with open( os.path.join(thisscriptpath,'resources/', myfilename), 'r') as file :
+          filedata = file.read()
+        
+        # Replace the target string
+        filedata = filedata.replace('somepackage', packagename)
+        
+        # Write the file out again
+        with open( os.path.join(base_directory, myfilename), 'w') as file:
+          file.write(filedata)
+    return base_directory, meshes_directory, components_directory
 
-base_directory = "c:/test_gummi_urdf2"
-if not os.path.exists(base_directory):
-    os.makedirs(base_directory)
-meshes_directory = base_directory + "/meshes"
-if not os.path.exists(meshes_directory):
-    os.makedirs(meshes_directory)    
-
+thisdocsunits = ''
 
 def run(context):
     try:
-        global _app, _ui, _design, _thistree
+        global _app, _ui, _design, _thistree, thisdocsunits
         _app = adsk.core.Application.get()
         _ui = _app.userInterface
         product = _app.activeProduct
         _design = adsk.fusion.Design.cast(product)
         
+        #createpaths('batatas')
+        thisdocsunits = _design.unitsManager.defaultLengthUnits         
+        
+        if thisdocsunits != 'm':
+             _ui.messageBox('So, funny thing, I have no idea on how to set default units and set them back using this API. As far as I am aware, it is currently(18-08-2018) impossible. So you need to change this documents units to meters and also make meters default for the URDF to be generated the right way - I have to create new documents, so if you don''t change the default, it won''t work\n. Once Autodesk either responds my forum question, or fixes ExportManager or allows for non-uniform affine transformations, this will no longer be necessary. ')
+             return
+        #a = adsk.core.Matrix3D.create()        
+        
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
-        logging.basicConfig(filename=os.path.join(base_directory,'urdfgen.log'),level=logging.DEBUG)
+        logging.basicConfig(filename=os.path.join(os.path.expanduser("~"),'urdfgen.log'),level=logging.DEBUG)
 
         # Get the existing command definition or create it if it doesn't already exist.
         addlinkcmdDef = _ui.commandDefinitions.itemById('cmdInputsAddLink')
