@@ -12,7 +12,7 @@ FILE_NAME(
 /* name */ 
 'C:/Users/Frederico/OneDrive/Dokumenty/mypackage/components//link11.st
 p',
-/* time_stamp */ '2018-08-20T19:46:34+01:00',
+/* time_stamp */ '2018-08-20T23:58:15+01:00',
 /* author */ (''),
 /* organization */ (''),
 /* preprocessor_version */ 'ST-DEVELOPER v17',
@@ -93,14 +93,14 @@ POSITIVE_RATIO_MEASURE(7850.),#46);
 #72=DIRECTION('center_axis',(0.,1.,0.));
 #73=DIRECTION('ref_axis',(1.,0.,0.));
 #74=CARTESIAN_POINT('',(0.,0.,0.));
-#75=CARTESIAN_POINT('Origin',(16.9325883186367,0.,1.0521812857454));
-#76=CARTESIAN_POINT('',(11.1325883186367,12.8,1.0521812857454));
-#77=CARTESIAN_POINT('Origin',(16.9325883186367,12.8,1.0521812857454));
-#78=CARTESIAN_POINT('',(11.1325883186367,0.,1.0521812857454));
-#79=CARTESIAN_POINT('',(11.1325883186367,0.,1.0521812857454));
-#80=CARTESIAN_POINT('Origin',(16.9325883186367,0.,1.0521812857454));
-#81=CARTESIAN_POINT('Origin',(16.9325883186367,12.8,1.0521812857454));
-#82=CARTESIAN_POINT('Origin',(16.9325883186367,0.,1.0521812857454));
+#75=CARTESIAN_POINT('Origin',(0.,0.,0.));
+#76=CARTESIAN_POINT('',(-5.8,6.3,7.10295143505465E-16));
+#77=CARTESIAN_POINT('Origin',(0.,6.3,0.));
+#78=CARTESIAN_POINT('',(-5.8,0.,7.10295143505465E-16));
+#79=CARTESIAN_POINT('',(-5.8,0.,7.10295143505465E-16));
+#80=CARTESIAN_POINT('Origin',(0.,0.,0.));
+#81=CARTESIAN_POINT('Origin',(0.,6.3,0.));
+#82=CARTESIAN_POINT('Origin',(0.,0.,0.));
 #83=UNCERTAINTY_MEASURE_WITH_UNIT(LENGTH_MEASURE(0.001),#87,
 'DISTANCE_ACCURACY_VALUE',
 'Maximum model space distance between geometric entities at asserted c
@@ -145,16 +145,16 @@ SI_UNIT($,.RADIAN.)
 #92=PRODUCT_DEFINITION_SHAPE('',$,#95);
 #93=SHAPE_REPRESENTATION('',(#55),#85);
 #94=PRODUCT_DEFINITION_CONTEXT('part definition',#99,'design');
-#95=PRODUCT_DEFINITION('ShoulderYawTop','ShoulderYawTop',#96,#94);
+#95=PRODUCT_DEFINITION('ShoulderYawBottom','ShoulderYawBottom',#96,#94);
 #96=PRODUCT_DEFINITION_FORMATION('',$,#101);
-#97=PRODUCT_RELATED_PRODUCT_CATEGORY('ShoulderYawTop','ShoulderYawTop',
-(#101));
+#97=PRODUCT_RELATED_PRODUCT_CATEGORY('ShoulderYawBottom',
+'ShoulderYawBottom',(#101));
 #98=APPLICATION_PROTOCOL_DEFINITION('international standard',
 'automotive_design',2009,#99);
 #99=APPLICATION_CONTEXT(
 'Core Data for Automotive Mechanical Design Process');
 #100=PRODUCT_CONTEXT('part definition',#99,'mechanical');
-#101=PRODUCT('ShoulderYawTop','ShoulderYawTop',$,(#100));
+#101=PRODUCT('ShoulderYawBottom','ShoulderYawBottom',$,(#100));
 #102=PRESENTATION_STYLE_ASSIGNMENT((#103));
 #103=SURFACE_STYLE_USAGE(.BOTH.,#104);
 #104=SURFACE_SIDE_STYLE('',(#105));
