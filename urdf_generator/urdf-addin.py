@@ -1,5 +1,4 @@
-#Author-Autodesk Inc.
-#Description-Demo command input examples
+#Author- Frederico B. Klein
 import adsk.core, adsk.fusion, traceback
 import xml.etree.cElementTree as etree
 import xml.dom.minidom # for prettying it....
@@ -7,7 +6,7 @@ import inspect
 import logging
 import re
 import os , sys
-
+#from copy import deepcopy ### pickle cant copy any swig object...
 
 _app = None
 _ui  = None
@@ -25,6 +24,7 @@ class UrdfTree:
     def __init__(self):
         self.elementsdict = {}
         self.currentel = None
+        #self.placedlinks = []
 
     def addLink(self, linkname,linknum):
         thislink = Link(linkname,linknum) 
@@ -34,35 +34,164 @@ class UrdfTree:
         thisjoint = Joint(jointname,jointnum) 
         self.elementsdict.update({jointnum:thisjoint})
         
-    def rmLink(self,linknum):
-        self.elementslist.pop(linknum)
-        self.elementsIDlist.pop(linknum)
+    def rmElement(self,linknum):
+        self.elementsdict.pop(linknum)
+        logging.warn('this is not properly implemented. results are unpredictable after this operation!')
         
-    def allLinks(self):
+    def _gentreefindbase(self, thiselementsdict, report):
+        placedlinks = {}
+        foundbase = False
+        for el in self.elementsdict:
+            if 'isLink' in dir(self.elementsdict[el]) and self.elementsdict[el].isLink and self.elementsdict[el].name == 'base_link':
+                foundbase = True
+                msg = 'found my base when testing. base is on row' + str(self.elementsdict[el].row)
+                logging.debug(msg)
+                report += msg +'\n'
+                ### adding base to placedlink list
+                placedlinks.update({0:self.elementsdict[el]})
+                thiselementsdict.pop(el)
+                break
+        if not foundbase:
+            report += 'did not find base!' +'\n'
+            logging.error('did not find base_link! the root link should have this name or a proper tree cannot be build. error ')
+        return placedlinks, thiselementsdict, report
+        
+    def gentree(self):
+
+        #report = ''
+        #thiselementsdict = deepcopy(self.elementsdict)
+        thiselementsdict = {}
+
+        for el in self.elementsdict:
+            thiselementsdict.update({el:self.elementsdict[el]})
+
+        placedlinks, thiselementsdict, report = self._gentreefindbase(thiselementsdict, '')
+            
+        something = True
+        while something:
+            placedjoints, placedeldic, thiselementsdict, myrep =  self._findjoints(placedlinks, thiselementsdict)
+            report += myrep
+            if placedjoints:
+                thiselementsdict, placedeldic, myrep = self._gentreecore(placedjoints, thiselementsdict, placedeldic)
+                report += myrep
+            else:
+                something = False
+                if thiselementsdict: ### after finishing this, thiseldict should be empty, if it isn't we have disconnected joints or links. 
+                    message = str(len(thiselementsdict)) + ' floating elements found. This tree is not correct, please review your work!'
+                    report += message
+                    logging.warn(message)
+                
+        _ui.messageBox(report+'\n'+ str(placedeldic)+'\n'+str(self.elementsdict))
+        
+        ### placedeldic should have a sequence of joints and links that are not a tree, but close looking to it, 
+        ### i forgot to set the link's parent joint, needed to remove the offset. but it should be easy to find it now. 
+            
+
+            
+    def _gentreecore(self, placedjoints, thiselementsdict, placedeldic):
+               #nextlinkstoplace = []       
+        report = ''
+        for joint in placedjoints:
+            #nextlinkstoplace.append(joint.childlink)
+            stillmerging = True
+            while stillmerging:
+                stillmerging, placedjoints, thiselementsdict, placedeldic, report = self._gentreecorecore(placedjoints, thiselementsdict, placedeldic, report, joint)                  
+                    
+        return thiselementsdict, placedeldic, report
+        
+        
+    def _gentreecorecore(self, placedjoints, thiselementsdict, placedeldic, report, joint):
+        stillmerging = False
+        for el in thiselementsdict:
+                if 'isLink' in dir(thiselementsdict[el]) and thiselementsdict[el].isLink and thiselementsdict[el].name == joint.childlink:
+                    ### if childlink in placedeldic then it is a closed chain!
+                    ### add it to placed elements
+                    placedeldic.update({len(placedeldic):thiselementsdict[el]})
+                    ### add placed links to report
+                    report += 'placed a link named:' +thiselementsdict[el].name + ' because joint named:' + joint.name + ' told me to!\n'
+                    ### need to set this joint as father of link thiselementsdict[el], but not on this reduced dictionary we are iterating, but on the main dic: self.elementsdict, which will be used to generate the urdf
+                    self._genfatherjoint(thiselementsdict[el].name, joint)
+                    ## pop it from this elements dict out of the loop (see couple of lines below)
+                    stillmerging = True
+                    break
+        if stillmerging:
+            thiselementsdict.pop(el) # here!
+        return stillmerging, placedjoints, thiselementsdict, placedeldic, report
+                            
+                            
+    def _genfatherjoint(self, linkname, joint):
+        for el in self.elementsdict:
+            if self.elementsdict[el].name == linkname:
+                ### found my link
+                self.elementsdict[el].genfatherjoint(joint)
+
+    def _findjointscore(self, placedeldic, thiselementsdict):
+        _,_, allplacedlinks = self._allLinks( placedeldic)
+        
+        myjoint = None
+        el = None
+        for el in thiselementsdict:
+            if 'isJoint' in dir(thiselementsdict[el]) and thiselementsdict[el].isJoint:
+            ### here is the place to look for whether parent and child are flipped. I will not do it, I will assume the person creating the thing is smart
+            ### i can also check for closed loops as well (but that would be harder...)
+                if thiselementsdict[el].parentlink in allplacedlinks:
+                    myjoint = thiselementsdict[el]                
+                    break
+        return myjoint, el     
+    
+    def _findjoints(self, placedeldic, thiselementsdict):
+        foundjoints = []
+        something = True        
+        report = ''
+        while something:
+            joint, eltopop = self._findjointscore(placedeldic, thiselementsdict)
+            if joint is None:
+                something = False
+            else:
+                foundjoints.append(joint)
+                thiselementsdict.pop(eltopop)
+                placedeldic.update({len(placedeldic):joint})
+                report += 'placed joint:'+ joint.name + '\n'
+        return foundjoints, placedeldic, thiselementsdict, report
+
+        
+    def _allLinks(self,whicheldict):
         exstr = ''
         nolinks = True
         alllinks = []
-        for el in self.elementsdict:
-            if 'isLink' in dir(self.elementsdict[el]) and self.elementsdict[el].isLink:
-                exstr = exstr +'link: ' + self.elementsdict[el].name + '\n'
-                alllinks.append(self.elementsdict[el])
+        alllinknames = []
+        for el in whicheldict:
+            if 'isLink' in dir(whicheldict[el]) and whicheldict[el].isLink:
+                exstr = exstr +'link: ' + whicheldict[el].name + '\n'
+                alllinknames.append(whicheldict[el].name)
+                alllinks.append(whicheldict[el])
                 nolinks = False
         if nolinks:
             exstr = 'no links!'
+        return exstr,alllinks, alllinknames
+        
+    def allLinks(self):
+        exstr,alllinks,_ = self._allLinks(self.elementsdict)
         return exstr,alllinks
         
     def allJoints(self):
+        exstr,alljoints,_ = self._allJoints(self.elementsdict)
+        return exstr,alljoints
+        
+    def _allJoints(self,  selfelementsdict):        
         exstr = ''
         nojoints = True
         alljoints = []
-        for el in self.elementsdict:
-            if 'isJoint' in dir(self.elementsdict[el]) and self.elementsdict[el].isJoint:
-                exstr = exstr +'joint: ' + self.elementsdict[el].name + '\n'
-                alljoints.append(self.elementsdict[el])
+        alljointnames = []
+        for el in selfelementsdict:
+            if 'isJoint' in dir(selfelementsdict[el]) and selfelementsdict[el].isJoint:
+                exstr = exstr +'joint: ' + selfelementsdict[el].name + '\n'
+                alljoints.append(selfelementsdict[el])
+                alljointnames.append( selfelementsdict[el].name)
                 nojoints = False
         if nojoints:
             exstr = 'no joints!'
-        return exstr,alljoints
+        return exstr,alljoints, alljointnames
         
     def allElements(self):
         exstr = ''
@@ -122,8 +251,15 @@ class OrVec:
     def __init__(self):
         self.xyz = '0 0 0'
         self.rpy = '0 0 0'
+        self.x = 0
+        self.y = 0
+        self.z = 0
     def setxyz(self,x,y,z):
-        self.xyz = str(x)+' ' + str(y)+' ' + str(z)
+        self.xyz = str(x/100)+' ' + str(y/100)+' ' + str(z/100) ### the internal representation of joint occurrences offsets seems to be in cm no matter what you change the units to be. this needs to be checked, but i think it is always like this. if you are reading this line and wondering if this is the reason why your assembly looks like it exploded, then I was wrong...
+        ### there will be inconsistencies here and if you change the values below to be "right", then the translation part on .genlink will not work. be mindful when trying to fix it. 
+        self.x = x
+        self.y = y
+        self.z = z
 
 class Visual:
     def __init__(self):
@@ -152,6 +288,7 @@ class Link:
         self.group = []
         self.isLink = True
         self.row = row
+        self.coordinatesystem = OrVec()
     def __groupmembers(self,rigidgrouplist):
         self.group = rigidgrouplist.getgroupmemberships(self.name)
         return rigidgrouplist.getwholegroup(self.name)
@@ -161,6 +298,14 @@ class Link:
         for el in self.group:
             items = items + el.name + '\n'
         return items
+        
+    def genfatherjoint(self,joint):
+        if not joint.isset:
+            logging.error('tried to set displacement for link:' +self.name + ',but joint ' + joint.name + ' is not set.')
+        ### need to set the self.coordinatesystem to contain at least the displacement from the joint. 
+        ### rotations are also probably important, but i will not do that for now. 
+        else:
+            self.coordinatesystem = joint.origin
         
     def makexml(self, urdfroot):
         self.visual.geometryfilename = "package://"+packagename+"/meshes/" + clearupst(self.name) +".stl"
@@ -194,6 +339,7 @@ class Link:
         didifail = 0        
         
         try:            
+            logging.debug('starting genlink')
             # Get the root component of the active design
             rootComp = _design.rootComponent
     
@@ -202,6 +348,13 @@ class Link:
             
             # create a single exportManager instance
             exportMgr = _design.exportManager
+            
+            ###TODO: this needs to be done for the joints as well. aff...
+            removejointtranslation = adsk.core.Matrix3D.create()
+            translation = adsk.core.Vector3D.create(-self.coordinatesystem.x, -self.coordinatesystem.y, -self.coordinatesystem.z)
+            removejointtranslation.setToIdentity()
+            removejointtranslation.translation = translation
+            logging.debug('Offset from joint is:' + str( removejointtranslation.asArray()))
             
             #### add occurrances from other stuff to this new stuff
             for i in range(0,len(self.group)):
@@ -224,9 +377,14 @@ class Link:
                             logging.debug('with tm:' + str(lasttm.asArray()))
                             #newrot.transformBy(allOccs.item(l).transform)
                     ### now that i have all the occurrences names i need to get them from allOccs(?!)
-                newrotl.append(self.group[i].transform.copy())
+                lasttransform = self.group[i].transform.copy()
+                lasttransform.transformBy(removejointtranslation)
+                newrotl.append(lasttransform)
+#                newrot = removejointtranslation
+
                 newrot = adsk.core.Matrix3D.create()
                 newrot.setToIdentity()
+
                 for j in reversed(range(0,len(newrotl))):
                     newrot.transformBy(newrotl[j])
                 express = 'it'+str(i)+ '=newrot'
@@ -269,7 +427,7 @@ class Link:
 #            mytransf.setCell(2,2,myscaleratio)
 #            mytransf.setCell(3,3,myscaleratio)
             ###turns out this a nonuniform transform and fusion has a check against letting you do this. i can't turn it off, or so it seems
-            ###TODO: this needs to be done for the joints as well. aff...
+
     
             # Create two new components under root component
             allOccs = rootComp.occurrences   
@@ -286,7 +444,7 @@ class Link:
             for i in range(0,len(rootComp.occurrences)):
                 thistransf = eval('it'+str(i))
                 ## i also want to scale them to SI units. doing it here is easier
-                #thistransf.transformBy(mytransf)    
+                #thistransf.transformBy(removejointtranslation)    
                 rootComp.occurrences.item(i).transform = thistransf
                 #rootComp.occurrences.item(i).transform = eval('it'+str(i))
                 pass
@@ -296,7 +454,10 @@ class Link:
             logging.info('XYZ moments of inertia:'+str(rootComp.physicalProperties.getXYZMomentsOfInertia()))
             logging.info('Mass:'+str(rootComp.physicalProperties.mass))
             
-                        
+            ### setting units to meters so stls will have proper sizes!
+            unitsMgr = design.fusionUnitsManager
+
+            unitsMgr.distanceDisplayUnits = adsk.fusion.DistanceUnits.MeterDistanceUnits
             
             # create aNOTHER! exportManager instance
             exportMgr = design.exportManager
@@ -312,7 +473,7 @@ class Link:
             #    stlRootOptions.sendToPrintUtility = True
             #   stlRootOptions.printUtility = printUtil
             stlRootOptions.sendToPrintUtility = False
-    
+            logging.info('saving STL file: '+ meshes_directory+'/' + stlname )
             exportMgr.execute(stlRootOptions)            
             
             self.visual.geometryfilename = "package://"+packagename+"/meshes/" + stlname +".stl"
@@ -338,7 +499,9 @@ class Joint:
         self.type = ''
         self.row = row # i am not sure why i am savign this...
         self.isJoint = True
+        self.isset = False
     def setjoint(self,joint):#,parentl,childl):
+        self.isset = True
         self.generatingjointname = joint.name
         #self.parentlink = parentl
         #self.childlink = childl
@@ -587,6 +750,8 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
             if cmdInput.id == 'jointselection' and jointselInput.selectionCount == 1:
                _thistree.currentel.setjoint( jointselInput.selection(0).entity)
             
+            if cmdInput.id == 'createtree':
+                _thistree.gentree()
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
@@ -602,7 +767,9 @@ def setcurrel(tbsr,dbi, oldrow, linkselInput, jointselInput):
     else:
         row = oldrow
     alllinkstr, _ = _thistree.allElements()
-    dbi.text =str(oldrow)+'\t'+str(row)+'\n'+'current element: '+ _thistree.getcurrenteldesc() +  '\n' + alllinkstr
+    #dbi.text =str(oldrow)+'\t'+str(row)+'\n'+'current element: '+ _thistree.getcurrenteldesc() +  '\n' + alllinkstr
+    dbi.text ='current element: '+ _thistree.getcurrenteldesc() +  '\n' + alllinkstr
+
 
 def getrow(commandstr,cmdid, tbsr, debugInput):
     if commandstr in cmdid:
@@ -649,7 +816,9 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
 #            _thistree.currentlink.genlink(meshes_directory)
 #            #currentlink.name = linkInput.value
 #            _thistree.currentlink.makelinkxml(urdfroot)      
-            _, allels =  _thistree.allElements()
+            allelstr, allels =  _thistree.allElements()
+            logging.info('found '+ str(len(allels)) + allelstr)            
+            
             for i in range(0,len(allels)):
                 if 'isLink' in dir(allels[i]) and allels[i].isLink:
                     allels[i].genlink(meshes_directory, components_directory)
@@ -676,6 +845,7 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
             # Code to react to the event.
             #_ui.messageBox('In MyExecuteHandler event handler.')
         except:
+            logging.error('Failed:\n{}'.format(traceback.format_exc()))
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
         
 # Event handler that reacts when the command definitio is executed which
@@ -731,6 +901,9 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
             #message = '<div align="center">For more information on how to create an URDF, visit <a href="http:lmgtfy.com/?q=how+to+create+an+urdf">our website.</a></div>'
             #tab3ChildInputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)            
+
+            ##create thing that shows tree of links and joints
+            tab3ChildInputs.addBoolValueInput('createtree','Create tree',  False,'', True)
 
             # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
             messaged = ''
@@ -817,9 +990,9 @@ def run(context):
         #createpaths('batatas')
         thisdocsunits = _design.unitsManager.defaultLengthUnits         
         
-        if thisdocsunits != 'm':
-             _ui.messageBox('So, funny thing, I have no idea on how to set default units and set them back using this API. As far as I am aware, it is currently(18-08-2018) impossible. So you need to change this documents units to meters and also make meters default for the URDF to be generated the right way - I have to create new documents, so if you don''t change the default, it won''t work\n. Once Autodesk either responds my forum question, or fixes ExportManager or allows for non-uniform affine transformations, this will no longer be necessary. ')
-             return
+        #if thisdocsunits != 'm':
+        #     _ui.messageBox('So, funny thing, I have no idea on how to set default units and set them back using this API. As far as I am aware, it is currently(18-08-2018) impossible. So you need to change this documents units to meters and also make meters default for the URDF to be generated the right way - I have to create new documents, so if you don''t change the default, it won''t work\n. Once Autodesk either responds my forum question, or fixes ExportManager or allows for non-uniform affine transformations, this will no longer be necessary. ')
+        #     return
         #a = adsk.core.Matrix3D.create()        
         
         for handler in logging.root.handlers[:]:
