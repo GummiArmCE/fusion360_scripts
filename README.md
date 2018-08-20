@@ -19,9 +19,11 @@ If you have rviz installed, you can use the display.launch file provided and see
     
 This will start rviz and robot and joint state publisher so you can move it around. Currently I've only tested it with revolute/continous joints and it is not exactly funcional, since you probably need to add an extra link and an extra fixed joint to correct the 90 degree error on the model. Setting rotations and making sure everything aligns is rather painful, so I am taking my time to correct this error.
 
+A sample of a created urdf using this add-in is available in the mypackage folder. 
+
 ### Caveats:
 
-You may need to change documents dimensions to cm to run it properly. I haven't checked it yet, just making sure, if you are using this code right now, that you can get something you can still view in rviz
+You may need to change documents dimensions to cm to run it properly. I haven't checked it yet, just making sure, if you are using this code right now, that you can get something you can still view in rviz.
 
 
 
