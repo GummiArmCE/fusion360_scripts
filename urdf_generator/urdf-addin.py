@@ -571,8 +571,10 @@ class Joint:
         try:
             self.origin.setxyz(joint.geometryOrOriginOne.origin.x, joint.geometryOrOriginOne.origin.y, joint.geometryOrOriginOne.origin.z)
         except:
-            logging.debug('could not set joint origin. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
+            logging.error('could not set joint origin. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
         ### TODO so I am not using the base occurrences to set this joint - i am not using .geometryOrOriginTwo for anythin - so I might be making mistakes in prismatic joints - who uses those??? - so I should check to see if they are same and warn at least in case they are not...
+            logging.warn('Could not set joint origins for joint' + self.name+'. You need to edit the URDF and fix it manually.')
+
         try:
             if joint.jointMotion.jointType is 1:
                 self.type = "revolute"
@@ -593,7 +595,8 @@ class Joint:
         except:
             self.type = "fixed" ## i still want to produce some sort of URDF. hopefully this will be a bad one, but recoverable by changing offsets and joint type/angles
             logging.debug('could not set joint type or limits. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
-            
+            logging.warn('Could not set joint type for joint' + self.name+'. You need to edit the URDF and fix it manually.')
+
     def setrealorigin(self, fathercoordinatesystem):
         assert fathercoordinatesystem.isset
         self.realorigin.setxyz(self.origin.x- fathercoordinatesystem.x, self.origin.y - fathercoordinatesystem.y, self.origin.z- fathercoordinatesystem.z)
