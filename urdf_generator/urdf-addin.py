@@ -38,6 +38,7 @@ class UrdfTree:
         self.elementsdict.update({jointnum:thisjoint})
         
     def rmElement(self,linknum):
+        logging.debug('deleted element' + str(linknum)+ 'named:'+ self.elementsdict[linknum].name)
         self.elementsdict.pop(linknum)
         logging.warn('this is not properly implemented. results are unpredictable after this operation!')
         
@@ -358,7 +359,26 @@ class Link:
             #origin = etree.SubElement(inertial, "origin")
             #etree.SubElement(origin, "xyz").text = self.inertial.origin.xyz
             #etree.SubElement(origin, "rpy").text = self.inertial.origin.rpy
-
+            #### my asserts to try to avoid crashing etree
+            assert type(self.inertial.origin.xyz) == str
+            assert type(self.inertial.origin.rpy) == str
+            assert type(self.inertial.mass) == str
+            assert type(self.inertial.inertia.ixx) == str
+            assert type(self.inertial.inertia.ixy) == str
+            assert type(self.inertial.inertia.ixz) == str
+            assert type(self.inertial.inertia.iyy) == str
+            assert type(self.inertial.inertia.iyz) == str
+            assert type(self.inertial.inertia.izz) == str
+            assert type( self.visual.origin.xyz) == str
+            assert type(self.visual.origin.rpy ) == str
+            assert type( self.visual.geometryfilename) == str
+            assert type(self.visual.materialname) == str
+            assert type(self.visual.color) == str
+            assert type(self.collision.origin.xyz) == str
+            assert type(self.collision.origin.rpy) == str
+            assert type(self.visual.geometryfilename) == str
+            #assert type(a) == str
+            #assert type(a) == str
         return urdfroot
         
 
@@ -548,26 +568,32 @@ class Joint:
         #         RigidJointType     0     Specifies a rigid type of joint.
         #         SliderJointType     2     Specifies a slider type of joint.
         #==============================================================================
-        
-        self.origin.setxyz(joint.geometryOrOriginOne.origin.x, joint.geometryOrOriginOne.origin.y, joint.geometryOrOriginOne.origin.z)
-
+        try:
+            self.origin.setxyz(joint.geometryOrOriginOne.origin.x, joint.geometryOrOriginOne.origin.y, joint.geometryOrOriginOne.origin.z)
+        except:
+            logging.debug('could not set joint origin. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
         ### TODO so I am not using the base occurrences to set this joint - i am not using .geometryOrOriginTwo for anythin - so I might be making mistakes in prismatic joints - who uses those??? - so I should check to see if they are same and warn at least in case they are not...
-        if joint.jointMotion.jointType is 1:
-            self.type = "revolute"
-            self.axis = str(joint.jointMotion.rotationAxisVector.x)+ ' ' + str(joint.jointMotion.rotationAxisVector.y)+ ' ' + str(joint.jointMotion.rotationAxisVector.z)
-        if joint.jointMotion.jointType is 0:
-            self.type = "fixed"
-        
-        haslimits = False
-        if 'rotationLimits' in dir(joint.jointMotion):
-            if joint.jointMotion.rotationLimits.isMinimumValueEnabled:
-                self.limit.lower = joint.jointMotion.rotationLimits.minimumValue
-                haslimits = True
-            if joint.jointMotion.rotationLimits.isMaximumValueEnabled:
-                self.limit.upper = joint.jointMotion.rotationLimits.maximumValue
-                haslimits = True
-        if self.type == "revolute" and not haslimits:
-            self.type = "continuous"
+        try:
+            if joint.jointMotion.jointType is 1:
+                self.type = "revolute"
+                self.axis = str(joint.jointMotion.rotationAxisVector.x)+ ' ' + str(joint.jointMotion.rotationAxisVector.y)+ ' ' + str(joint.jointMotion.rotationAxisVector.z)
+            if joint.jointMotion.jointType is 0:
+                self.type = "fixed"
+            
+            haslimits = False
+            if 'rotationLimits' in dir(joint.jointMotion):
+                if joint.jointMotion.rotationLimits.isMinimumValueEnabled:
+                    self.limit.lower = str(joint.jointMotion.rotationLimits.minimumValue)
+                    haslimits = True
+                if joint.jointMotion.rotationLimits.isMaximumValueEnabled:
+                    self.limit.upper = str(joint.jointMotion.rotationLimits.maximumValue)
+                    haslimits = True
+            if self.type == "revolute" and not haslimits:
+                self.type = "continuous"
+        except:
+            self.type = "fixed" ## i still want to produce some sort of URDF. hopefully this will be a bad one, but recoverable by changing offsets and joint type/angles
+            logging.debug('could not set joint type or limits. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
+            
     def setrealorigin(self, fathercoordinatesystem):
         assert fathercoordinatesystem.isset
         self.realorigin.setxyz(self.origin.x- fathercoordinatesystem.x, self.origin.y - fathercoordinatesystem.y, self.origin.z- fathercoordinatesystem.z)
@@ -587,7 +613,18 @@ class Joint:
         #origin = etree.SubElement(inertial, "origin")
         #etree.SubElement(origin, "xyz").text = self.inertial.origin.xyz
         #etree.SubElement(origin, "rpy").text = self.inertial.origin.rpy
-
+        ###my asserts checks now, because this code is driving me insane
+        assert type(self.type) == str        
+        assert type(self.realorigin.xyz) == str
+        assert type(self.realorigin.rpy) == str
+        assert type(self.parentlink) == str
+        assert type(self.childlink) == str
+        assert type(self.axis) == str
+        assert type(self.limit.lower) == str
+        assert type(self.limit.upper) == str
+        assert type(self.limit.effort) == str
+        assert type( self.limit.velocity) == str        
+        
         return urdfroot
         
 class Limit:
@@ -768,7 +805,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                         _ui.messageBox('Select one row to delete.')
                     else:
                         ###this only works if every element is created as well...
-                        _thistree.elementsdict.pop(tableInput.selectedRow)
+                        _thistree.rmElement(tableInput.selectedRow)
                         tableInput.deleteRow(tableInput.selectedRow)
                         
                 ### setting up visibility of joint and link group selection stufffs:
