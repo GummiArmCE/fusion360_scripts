@@ -1,5 +1,4 @@
 #Author- Frederico B. Klein
-#Description- URDFGEN command - working, but it is kinda janky....
 import adsk.core, adsk.fusion, traceback
 import xml.etree.cElementTree as etree
 import xml.dom.minidom # for prettying it....
@@ -16,6 +15,8 @@ _rowNumber = 0
 _linknum = 0
 _linkname = 'link' + str(_linknum)
 packagename = 'mypackage'
+numoflinks = -1
+numofjoints = -1
 
 # Global set of event handlers to keep them referenced for the duration of the command
 _handlers = []
@@ -43,18 +44,21 @@ class UrdfTree:
         placedlinks = {}
         foundbase = False
         for el in self.elementsdict:
-            if 'isLink' in dir(self.elementsdict[el]) and self.elementsdict[el].isLink and self.elementsdict[el].name == 'base_link':
+            if 'isLink' in dir(self.elementsdict[el]) and self.elementsdict[el].isLink and self.elementsdict[el].name == 'base':
                 foundbase = True
                 msg = 'found my base when testing. base is on row' + str(self.elementsdict[el].row)
                 logging.debug(msg)
                 report += msg +'\n'
+                ### base is zero, so its coordinate system is correctly set, we just need to change the isset property
+                self.elementsdict[el].coordinatesystem.isset = True
                 ### adding base to placedlink list
                 placedlinks.update({0:self.elementsdict[el]})
+                assert placedlinks[0].coordinatesystem.isset
                 thiselementsdict.pop(el)
                 break
         if not foundbase:
             report += 'did not find base!' +'\n'
-            logging.error('did not find base_link! the root link should have this name or a proper tree cannot be build. error ')
+            logging.error('did not find base! the root link should have this name or a proper tree cannot be build. error ')
         return placedlinks, thiselementsdict, report
         
     def gentree(self):
@@ -65,9 +69,16 @@ class UrdfTree:
 
         for el in self.elementsdict:
             thiselementsdict.update({el:self.elementsdict[el]})
+            #### i am going to use this opportunity to check if links have a group
+            if 'isLink' in dir(self.elementsdict[el]) and self.elementsdict[el].isLink:
+                if not self.elementsdict[el].group:
+                    report = 'found an empty group. virtual links are currently not supported. this will fail to build correct urdf!'
+                    logging.error(report)
+                    _ui.messageBox(report) ### or i could have used assert and did it all in one line...
 
         placedlinks, thiselementsdict, report = self._gentreefindbase(thiselementsdict, '')
-            
+        assert placedlinks[0].coordinatesystem.isset
+        
         something = True
         while something:
             placedjoints, placedeldic, thiselementsdict, myrep =  self._findjoints(placedlinks, thiselementsdict)
@@ -82,7 +93,8 @@ class UrdfTree:
                     report += message
                     logging.warn(message)
                 
-        _ui.messageBox(report+'\n'+ str(placedeldic)+'\n'+str(self.elementsdict))
+        _ui.messageBox(report+'\n')
+        logging.debug( str(placedeldic)+'\n'+str(self.elementsdict))
         
         ### placedeldic should have a sequence of joints and links that are not a tree, but close looking to it, 
         ### i forgot to set the link's parent joint, needed to remove the offset. but it should be easy to find it now. 
@@ -137,6 +149,15 @@ class UrdfTree:
             ### i can also check for closed loops as well (but that would be harder...)
                 if thiselementsdict[el].parentlink in allplacedlinks:
                     myjoint = thiselementsdict[el]                
+                    #### actually this may seem like a rather weird way to do this, but I don't want to recode this function
+                    for elel in placedeldic:
+                        if thiselementsdict[el].parentlink == placedeldic[elel].name:
+                            ### then placedeldic[elel] is my link
+                            ### if i did this correctly, the father link will already have a set coordinatesystem
+                            logging.debug('placed link is ' + placedeldic[elel].name)
+                            assert placedeldic[elel].coordinatesystem.isset                          
+
+                            myjoint.setrealorigin(placedeldic[elel].coordinatesystem)
                     break
         return myjoint, el     
     
@@ -255,7 +276,9 @@ class OrVec:
         self.x = 0
         self.y = 0
         self.z = 0
+        self.isset = False
     def setxyz(self,x,y,z):
+        self.isset = True
         self.xyz = str(x/100)+' ' + str(y/100)+' ' + str(z/100) ### the internal representation of joint occurrences offsets seems to be in cm no matter what you change the units to be. this needs to be checked, but i think it is always like this. if you are reading this line and wondering if this is the reason why your assembly looks like it exploded, then I was wrong...
         ### there will be inconsistencies here and if you change the values below to be "right", then the translation part on .genlink will not work. be mindful when trying to fix it. 
         self.x = x
@@ -267,7 +290,7 @@ class Visual:
         self.origin = OrVec()
         self.geometryfilename = ""
         self.materialname = ""
-        self.color = '0 0 0 1'
+        self.color = '0.792156862745098 0.819607843137255 0.933333333333333 1' ### the colour that was being used in our other files. i am used to it, so i will keep it
 
 class Collision:
     def __init__(self):
@@ -290,6 +313,7 @@ class Link:
         self.isLink = True
         self.row = row
         self.coordinatesystem = OrVec()
+        self.isVirtual = True
     def __groupmembers(self,rigidgrouplist):
         self.group = rigidgrouplist.getgroupmemberships(self.name)
         return rigidgrouplist.getwholegroup(self.name)
@@ -312,33 +336,34 @@ class Link:
         self.visual.geometryfilename = "package://"+packagename+"/meshes/" + clearupst(self.name) +".stl"
 
         link = etree.SubElement(urdfroot, "link", name= clearupst(self.name))
-        
-        inertial = etree.SubElement(link, "inertial")
-        etree.SubElement(inertial, "origin", xyz = self.inertial.origin.xyz, rpy = self.inertial.origin.rpy  )
-        etree.SubElement(inertial, "mass", value = self.inertial.mass)
-        etree.SubElement(inertial, "inertia", ixx= self.inertial.inertia.ixx, ixy= self.inertial.inertia.ixy, ixz= self.inertial.inertia.ixz, iyy= self.inertial.inertia.iyy, iyz= self.inertial.inertia.iyz, izz= self.inertial.inertia.izz )
 
-        visual = etree.SubElement(link, "visual")
-        etree.SubElement(visual, "origin", xyz = self.visual.origin.xyz, rpy = self.visual.origin.rpy  )
-        geometry = etree.SubElement(visual, "geometry")
-        etree.SubElement(geometry, "mesh", filename = self.visual.geometryfilename)
-        material = etree.SubElement(visual, "material", name = self.visual.materialname)
-        etree.SubElement(material, "color", rgba = self.visual.color)
-
-        collision = etree.SubElement(link, "collision")
-        etree.SubElement(collision, "origin", xyz = self.collision.origin.xyz, rpy = self.collision.origin.rpy  )
-        geometry = etree.SubElement(collision, "geometry")
-        etree.SubElement(geometry, "mesh", filename = self.visual.geometryfilename)
-        #origin = etree.SubElement(inertial, "origin")
-        #etree.SubElement(origin, "xyz").text = self.inertial.origin.xyz
-        #etree.SubElement(origin, "rpy").text = self.inertial.origin.rpy
+        if not self.isVirtual:        
+            inertial = etree.SubElement(link, "inertial")
+            etree.SubElement(inertial, "origin", xyz = self.inertial.origin.xyz, rpy = self.inertial.origin.rpy  )
+            etree.SubElement(inertial, "mass", value = self.inertial.mass)
+            etree.SubElement(inertial, "inertia", ixx= self.inertial.inertia.ixx, ixy= self.inertial.inertia.ixy, ixz= self.inertial.inertia.ixz, iyy= self.inertial.inertia.iyy, iyz= self.inertial.inertia.iyz, izz= self.inertial.inertia.izz )
+    
+            visual = etree.SubElement(link, "visual")
+            etree.SubElement(visual, "origin", xyz = self.visual.origin.xyz, rpy = self.visual.origin.rpy  )
+            geometry = etree.SubElement(visual, "geometry")
+            etree.SubElement(geometry, "mesh", filename = self.visual.geometryfilename)
+            material = etree.SubElement(visual, "material", name = self.visual.materialname)
+            etree.SubElement(material, "color", rgba = self.visual.color)
+    
+            collision = etree.SubElement(link, "collision")
+            etree.SubElement(collision, "origin", xyz = self.collision.origin.xyz, rpy = self.collision.origin.rpy  )
+            geometry = etree.SubElement(collision, "geometry")
+            etree.SubElement(geometry, "mesh", filename = self.visual.geometryfilename)
+            #origin = etree.SubElement(inertial, "origin")
+            #etree.SubElement(origin, "xyz").text = self.inertial.origin.xyz
+            #etree.SubElement(origin, "rpy").text = self.inertial.origin.rpy
 
         return urdfroot
         
 
     def genlink(self,meshes_directory, components_directory):
         didifail = 0        
-        
+        self.isVirtual = False
         try:            
             logging.debug('starting genlink')
             # Get the root component of the active design
@@ -492,6 +517,7 @@ class Joint:
         self.name = jointname
         self.generatingjointname = ''
         self.origin = OrVec()
+        self.realorigin = OrVec()
         self.parentlink = ''
         self.childlink = ''
         self.axis = '0 0 0'
@@ -507,17 +533,21 @@ class Joint:
         #self.parentlink = parentl
         #self.childlink = childl
         
-        #python doesnt have a switch statement, i repeat python does not have a switch statement...
-        #from the docs, we should implement this:
-        #Name     Value     Description
-        #BallJointType     6     Specifies a ball type of joint.
-        #CylindricalJointType     3     Specifies a cylindrical type of joint.
-        #PinSlotJointType     4     Specifies a pin-slot type of joint.
-        #PlanarJointType     5     Specifies a planar type of joint.
-        #RevoluteJointType     1     Specifies a revolute type of joint.
-        #RigidJointType     0     Specifies a rigid type of joint.
-        #SliderJointType     2     Specifies a slider type of joint.
+        #==============================================================================
+        #         python doesnt have a switch statement, i repeat python does not have a switch statement...
+        #         from the docs, we should implement this:
+        #         Name     Value     Description
+        #         BallJointType     6     Specifies a ball type of joint.
+        #         CylindricalJointType     3     Specifies a cylindrical type of joint.
+        #         PinSlotJointType     4     Specifies a pin-slot type of joint.
+        #         PlanarJointType     5     Specifies a planar type of joint.
+        #         RevoluteJointType     1     Specifies a revolute type of joint.
+        #         RigidJointType     0     Specifies a rigid type of joint.
+        #         SliderJointType     2     Specifies a slider type of joint.
+        #==============================================================================
+        
         self.origin.setxyz(joint.geometryOrOriginOne.origin.x, joint.geometryOrOriginOne.origin.y, joint.geometryOrOriginOne.origin.z)
+
         ### TODO so I am not using the base occurrences to set this joint - i am not using .geometryOrOriginTwo for anythin - so I might be making mistakes in prismatic joints - who uses those??? - so I should check to see if they are same and warn at least in case they are not...
         if joint.jointMotion.jointType is 1:
             self.type = "revolute"
@@ -535,6 +565,9 @@ class Joint:
                 haslimits = True
         if self.type == "revolute" and not haslimits:
             self.type = "continuous"
+    def setrealorigin(self, fathercoordinatesystem):
+        assert fathercoordinatesystem.isset
+        self.realorigin.setxyz(self.origin.x- fathercoordinatesystem.x, self.origin.y - fathercoordinatesystem.y, self.origin.z- fathercoordinatesystem.z)
             
     def getitems(self):
         items = 'genjn:'+self.generatingjointname+'\n'+'parent:' + self.parentlink + '\t' + 'child:' + self.childlink        
@@ -543,7 +576,7 @@ class Joint:
     def makexml(self, urdfroot):
 
         joint = etree.SubElement(urdfroot, "joint", name= clearupst(self.name), type = self.type)
-        etree.SubElement(joint, "origin", xyz = self.origin.xyz, rpy = self.origin.rpy)
+        etree.SubElement(joint, "origin", xyz = self.realorigin.xyz, rpy = self.realorigin.rpy)
         etree.SubElement(joint, "parent", link = self.parentlink)
         etree.SubElement(joint, "child", link = self.childlink)
         etree.SubElement(joint, "axis", xyz = self.axis)
@@ -582,20 +615,30 @@ def spaces(spaceCount):
 
 
 # Adds a new row to the table.
-def addRowToTable(tableInput):
+def addRowToTable(tableInput,LinkOrJoint):
+    global numoflinks, numofjoints
     # Get the CommandInputs object associated with the parent command.
     cmdInputs = adsk.core.CommandInputs.cast(tableInput.commandInputs)
+    
+    if LinkOrJoint =='' or LinkOrJoint == 'Link':
+        dropdownthingy = True
+        numoflinks += 1
+    elif LinkOrJoint =='Joint':
+        dropdownthingy = False        
+        numofjoints += 1
     
     # Create three new command inputs.
     #valueInput = cmdInputs.addTextBoxCommandInput('TableInput_value{}'.format(_rowNumber), 'JorL', 'Link',1,True)
     JorLInput = cmdInputs.addDropDownCommandInput('TableInput_value{}'.format(_rowNumber), 'JorLTable{}'.format(_rowNumber), adsk.core.DropDownStyles.TextListDropDownStyle)
     dropdownItems = JorLInput.listItems
-    dropdownItems.add('Link', True, '')
-    dropdownItems.add('Joint', False,'')   
+    dropdownItems.add('Link', dropdownthingy, '')
+    dropdownItems.add('Joint', not dropdownthingy,'')   
     if _rowNumber == 0:
-        rightlinkname = 'base_link'        
-    else:
-        rightlinkname = 'link' + str(_rowNumber)
+        rightlinkname = 'base'        
+    elif LinkOrJoint =='' or LinkOrJoint == 'Link':
+        rightlinkname = 'link' +str(numoflinks) # str(_rowNumber)
+    elif LinkOrJoint =='Joint':
+        rightlinkname = 'joint' + str(numofjoints)# str(_rowNumber)
         
     stringInput =  cmdInputs.addStringValueInput('TableInput_string{}'.format(_rowNumber), 'StringTable{}'.format(_rowNumber), rightlinkname)
     elnnumInput =  cmdInputs.addStringValueInput('elnum{}'.format(_rowNumber), 'elnumTable{}'.format(_rowNumber), str(_rowNumber))
@@ -626,7 +669,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
         super().__init__()
     def notify(self, args):
         try:
-            global _thistree, currentel        
+            global _thistree, currentel, _rowNumber     
             
             eventArgs = adsk.core.InputChangedEventArgs.cast(args)
             inputs = eventArgs.inputs
@@ -695,14 +738,33 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 if cmdInput.id == 'packagename':
                     pkgnInput = inputs.itemById('packagename')
                     packagename = pkgnInput.text
-                
+                    
+                if cmdInput.id == 'tableJointAdd':
+                    addRowToTable(tableInput,'Joint')
+                    tableInput.getInputAtPosition(_rowNumber-1,1).isEnabled = False
+                    ####horrible hack because it is lateand i am tired of this thing.
+                    logging.debug('adding joint. row number'+str(_rowNumber))
+                    jointname = tableInput.getInputAtPosition(_rowNumber-1,2).value
+                    logging.debug('adding joint:' + str(jointname))
+                    _thistree.addJoint(jointname,_rowNumber-1)
+                    setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
+                    
+                if cmdInput.id == 'tableLinkAdd':
+                    addRowToTable(tableInput,'Link')
+                    tableInput.getInputAtPosition(_rowNumber-1,1).isEnabled = False
+                    logging.debug('adding link. row number'+str(_rowNumber))
+                    linkname = tableInput.getInputAtPosition(_rowNumber-1,2).value
+                    logging.debug('adding link:' + str(linkname))
+                    _thistree.addLink(linkname,_rowNumber-1)
+                    setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
+                        
                 if cmdInput.id == 'tableAdd':
-                    addRowToTable(tableInput)
+                    addRowToTable(tableInput,'')
                 elif cmdInput.id == 'tableDelete':
                     if tableInput.selectedRow == -1:
                         _ui.messageBox('Select one row to delete.')
                     else:
-    
+                        ###this only works if every element is created as well...
                         _thistree.elementsdict.pop(tableInput.selectedRow)
                         tableInput.deleteRow(tableInput.selectedRow)
                         
@@ -805,6 +867,7 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
         super().__init__()
     def notify(self, args):
         try:
+            logging.debug('started execute! ')
             global _thistree
             #eventArgs = adsk.core.CommandEventArgs.cast(args)    
             #inputs = eventArgs.inputs
@@ -813,6 +876,17 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
             base_directory, meshes_directory, components_directory = createpaths(packagename)
             
             urdfroot = etree.Element("robot", name = "gummi")
+            
+            base_link = Link('base_link',-1)
+            base_link.makexml(urdfroot)
+            #
+            setaxisjoint = Joint('set_worldaxis',-1)
+            setaxisjoint.isset = True
+            setaxisjoint.type = "fixed"
+            setaxisjoint.realorigin.rpy = str(3.14159265359/2)+' 0 0'
+            setaxisjoint.parentlink = 'base_link'
+            setaxisjoint.childlink = 'base'
+            setaxisjoint.makexml(urdfroot)
             
 #            _thistree.currentlink.genlink(meshes_directory)
 #            #currentlink.name = linkInput.value
@@ -885,15 +959,28 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             tab3ChildInputs.addStringValueInput('packagename','Name of your URDF package', packagename)
             # Create table input
             tableInput = tab3ChildInputs.addTableCommandInput('table', 'Table', 3, '1:2:3:1')
-            addRowToTable(tableInput)
+            addRowToTable(tableInput,'Link')
+            
+            tableInput.getInputAtPosition(_rowNumber-1,1).isEnabled = False
+            logging.debug('adding link. row number'+str(_rowNumber))
+            linkname = tableInput.getInputAtPosition(_rowNumber-1,2).value
+            logging.debug('adding link:' + str(linkname))
+            _thistree.addLink(linkname,_rowNumber-1)
+
 
             # Add inputs into the table.            
-            addButtonInput = tab3ChildInputs.addBoolValueInput('tableAdd', 'Add', False, '', True)
-            tableInput.addToolbarCommandInput(addButtonInput)
+            #addButtonInput = tab3ChildInputs.addBoolValueInput('tableAdd', 'Add', False, '', True)
+            #tableInput.addToolbarCommandInput(addButtonInput)
+            #### im removing add and create because of reasons.
+            addLinkButtonInput = tab3ChildInputs.addBoolValueInput('tableLinkAdd', 'Add Link', False, '', True)
+            tableInput.addToolbarCommandInput(addLinkButtonInput)
+            addJointButtonInput = tab3ChildInputs.addBoolValueInput('tableJointAdd', 'Add joint', False, '', True)
+            tableInput.addToolbarCommandInput(addJointButtonInput)
+            
             deleteButtonInput = tab3ChildInputs.addBoolValueInput('tableDelete', 'Delete', False, '', True)
             tableInput.addToolbarCommandInput(deleteButtonInput)
-            createButtonInput = tab3ChildInputs.addBoolValueInput('tableCreate', 'Create', False, '', True)
-            tableInput.addToolbarCommandInput(createButtonInput)
+            #createButtonInput = tab3ChildInputs.addBoolValueInput('tableCreate', 'Create', False, '', True)
+            #tableInput.addToolbarCommandInput(createButtonInput)
             
             # Create a read only textbox input.
             #tab1ChildInputs.addTextBoxCommandInput('readonly_textBox', 'URDF TREE', 'this would be the tree', 10, True)
