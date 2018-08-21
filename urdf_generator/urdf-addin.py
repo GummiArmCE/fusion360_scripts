@@ -1,4 +1,5 @@
 #Author- Frederico B. Klein
+#Description- URDFGEN command - lacks further embelishments, but it is functional.
 import adsk.core, adsk.fusion, traceback
 import xml.etree.cElementTree as etree
 import xml.dom.minidom # for prettying it....
