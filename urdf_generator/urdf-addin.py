@@ -1,5 +1,5 @@
 #Author- Frederico B. Klein
-#Description- URDFGEN command - lacks further embelishments, but it is functional.
+#Description- URDFGEN command - not working just yet.
 import adsk.core, adsk.fusion, traceback
 import xml.etree.cElementTree as etree
 import xml.dom.minidom # for prettying it....
@@ -405,8 +405,9 @@ class Link:
                             #newrot.transformBy(allOccs.item(l).transform)
                     ### now that i have all the occurrences names i need to get them from allOccs(?!)
                 lasttransform = self.group[i].transform.copy()
-                lasttransform.transformBy(removejointtranslation)
+                
                 newrotl.append(lasttransform)
+                
 #                newrot = removejointtranslation
 
                 newrot = adsk.core.Matrix3D.create()
@@ -414,6 +415,7 @@ class Link:
 
                 for j in reversed(range(0,len(newrotl))):
                     newrot.transformBy(newrotl[j])
+                newrot.transformBy(removejointtranslation)
                 express = 'it'+str(i)+ '=newrot'
                 exec(express)
             
@@ -748,7 +750,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     jointname = tableInput.getInputAtPosition(_rowNumber-1,2).value
                     logging.debug('adding joint:' + str(jointname))
                     _thistree.addJoint(jointname,_rowNumber-1)
-                    setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
+                    setcurrel(_rowNumber-1,debugInput, oldrow, linkselInput, jointselInput)
                     
                 if cmdInput.id == 'tableLinkAdd':
                     addRowToTable(tableInput,'Link')
@@ -757,7 +759,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     linkname = tableInput.getInputAtPosition(_rowNumber-1,2).value
                     logging.debug('adding link:' + str(linkname))
                     _thistree.addLink(linkname,_rowNumber-1)
-                    setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
+                    setcurrel(_rowNumber-1,debugInput, oldrow, linkselInput, jointselInput)
                         
                 if cmdInput.id == 'tableAdd':
                     addRowToTable(tableInput,'')
