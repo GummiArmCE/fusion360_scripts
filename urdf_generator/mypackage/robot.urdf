@@ -2,7 +2,7 @@
 <robot name="gummi">
 	<link name="base_link"/>
 	<joint name="set_worldaxis" type="fixed">
-		<origin rpy="0 0 0" xyz="0 0 0"/>
+		<origin rpy="1.570796326795 0 0" xyz="0 0 0"/>
 		<parent link="base_link"/>
 		<child link="base"/>
 		<axis xyz="0 0 0"/>
@@ -52,13 +52,28 @@
 			</geometry>
 		</collision>
 	</link>
-	<joint name="joint2" type="continuous">
-		<origin rpy="0 0 0" xyz="3.552713678800501e-17 -2.3665827156630353e-32 -4.440892098500626e-18"/>
-		<parent link="base"/>
-		<child link="link1"/>
-		<axis xyz="0.0 1.0 0.0"/>
-		<limit effort="0" lower="-1" upper="1" velocity="0"/>
-	</joint>
+	<link name="link2">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+		</inertial>
+		<visual>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link2.stl"/>
+			</geometry>
+			<material name="">
+				<color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+			</material>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link2.stl"/>
+			</geometry>
+		</collision>
+	</link>
 	<link name="link3">
 		<inertial>
 			<origin rpy="0 0 0" xyz="0 0 0"/>
@@ -81,13 +96,28 @@
 			</geometry>
 		</collision>
 	</link>
-	<joint name="joint4" type="continuous">
-		<origin rpy="0 0 0" xyz="-2.1316282072803005e-16 0.12800000000000034 -2.4424906541753446e-16"/>
-		<parent link="link1"/>
-		<child link="link3"/>
-		<axis xyz="-3.400058012914542e-16 -1.0475804435582063e-16 -1.0000000000000004"/>
-		<limit effort="0" lower="-1" upper="1" velocity="0"/>
-	</joint>
+	<link name="link4">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+		</inertial>
+		<visual>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link4.stl"/>
+			</geometry>
+			<material name="">
+				<color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
+			</material>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<mesh filename="package://mypackage/meshes/link4.stl"/>
+			</geometry>
+		</collision>
+	</link>
 	<link name="link5">
 		<inertial>
 			<origin rpy="0 0 0" xyz="0 0 0"/>
@@ -110,11 +140,39 @@
 			</geometry>
 		</collision>
 	</link>
-	<joint name="joint6" type="continuous">
+	<joint name="joint0" type="continuous">
+		<origin rpy="0 0 0" xyz="3.552713678800501e-17 -2.3665827156630353e-32 -4.440892098500626e-18"/>
+		<parent link="base"/>
+		<child link="link1"/>
+		<axis xyz="0.0 1.0 0.0"/>
+		<limit effort="0" lower="-1" upper="1" velocity="0"/>
+	</joint>
+	<joint name="joint1" type="continuous">
+		<origin rpy="0 0 0" xyz="-2.1316282072803005e-16 0.12800000000000034 -2.4424906541753446e-16"/>
+		<parent link="link1"/>
+		<child link="link2"/>
+		<axis xyz="-3.400058012914542e-16 -1.0475804435582063e-16 -1.0000000000000004"/>
+		<limit effort="0" lower="-1" upper="1" velocity="0"/>
+	</joint>
+	<joint name="joint2" type="continuous">
 		<origin rpy="0 0 0" xyz="2.753353101070388e-16 1.4210854715202004e-16 -0.13400000000000012"/>
-		<parent link="link3"/>
-		<child link="link5"/>
+		<parent link="link2"/>
+		<child link="link3"/>
 		<axis xyz="-0.9999999999999994 2.2204460492503116e-16 -3.677613769070831e-16"/>
+		<limit effort="0" lower="-1" upper="1" velocity="0"/>
+	</joint>
+	<joint name="joint3" type="continuous">
+		<origin rpy="0 0 0" xyz="-0.030000000000000915 -0.06349999999999931 -1.5987211554602254e-16"/>
+		<parent link="link3"/>
+		<child link="link4"/>
+		<axis xyz="-1.634803403760541e-14 -0.9999999999999962 1.0475804435583023e-16"/>
+		<limit effort="0" lower="-1" upper="1" velocity="0"/>
+	</joint>
+	<joint name="joint4" type="continuous">
+		<origin rpy="0 0 0" xyz="-7.105427357601002e-17 -0.23799999999999916 -2.486899575160351e-16"/>
+		<parent link="link4"/>
+		<child link="link5"/>
+		<axis xyz="1.0000000000000009 8.062965342091539e-18 9.714451465470163e-17"/>
 		<limit effort="0" lower="-1" upper="1" velocity="0"/>
 	</joint>
 </robot>
