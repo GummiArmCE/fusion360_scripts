@@ -1,5 +1,5 @@
 #Author- Frederico B. Klein
-#Description- URDFGEN command - not working just yet.
+#Description- URDFGEN command - somewhat functional.
 import adsk.core, adsk.fusion, traceback
 import xml.etree.cElementTree as etree
 import xml.dom.minidom # for prettying it....
@@ -13,8 +13,9 @@ _app = None
 _ui  = None
 _design = None
 _rowNumber = 0
-_linknum = 0
-_linkname = 'link' + str(_linknum)
+_elnum = 0
+_oldrow = -1
+
 packagename = 'mypackage'
 numoflinks = -1
 numofjoints = -1
@@ -37,10 +38,13 @@ class UrdfTree:
         thisjoint = Joint(jointname,jointnum) 
         self.elementsdict.update({jointnum:thisjoint})
         
-    def rmElement(self,linknum):
-        logging.debug('deleted element' + str(linknum)+ 'named:'+ self.elementsdict[linknum].name)
+    def rmElement(self,linknumstr):
+        linknum = int(linknumstr)
+        logging.debug('deleted element' + str(linknum)+ 'named: '+ self.elementsdict[linknum].name)
         self.elementsdict.pop(linknum)
-        logging.warn('this is not properly implemented. results are unpredictable after this operation!')
+        global _rowNumber        
+        _rowNumber -=1
+        #logging.warn('this is not properly implemented. results are unpredictable after this operation!')
         
     def _gentreefindbase(self, thiselementsdict, report):
         placedlinks = {}
@@ -659,7 +663,7 @@ def spaces(spaceCount):
 
 # Adds a new row to the table.
 def addRowToTable(tableInput,LinkOrJoint):
-    global numoflinks, numofjoints
+    global numoflinks, numofjoints, _elnum
     # Get the CommandInputs object associated with the parent command.
     cmdInputs = adsk.core.CommandInputs.cast(tableInput.commandInputs)
     
@@ -671,26 +675,27 @@ def addRowToTable(tableInput,LinkOrJoint):
         numofjoints += 1
     
     # Create three new command inputs.
-    #valueInput = cmdInputs.addTextBoxCommandInput('TableInput_value{}'.format(_rowNumber), 'JorL', 'Link',1,True)
-    JorLInput = cmdInputs.addDropDownCommandInput('TableInput_value{}'.format(_rowNumber), 'JorLTable{}'.format(_rowNumber), adsk.core.DropDownStyles.TextListDropDownStyle)
+    #valueInput = cmdInputs.addTextBoxCommandInput('TableInput_value{}'.format(_elnum), 'JorL', 'Link',1,True)
+    JorLInput = cmdInputs.addDropDownCommandInput('TableInput_value{}'.format(_elnum), 'JorLTable{}'.format(_elnum), adsk.core.DropDownStyles.TextListDropDownStyle)
     dropdownItems = JorLInput.listItems
     dropdownItems.add('Link', dropdownthingy, '')
     dropdownItems.add('Joint', not dropdownthingy,'')   
-    if _rowNumber == 0:
+    if _elnum == 0:
         rightlinkname = 'base'        
     elif LinkOrJoint =='' or LinkOrJoint == 'Link':
-        rightlinkname = 'link' +str(numoflinks) # str(_rowNumber)
+        rightlinkname = 'link' +str(numoflinks) # str(_elnum)
     elif LinkOrJoint =='Joint':
-        rightlinkname = 'joint' + str(numofjoints)# str(_rowNumber)
+        rightlinkname = 'joint' + str(numofjoints)# str(_elnum)
         
-    stringInput =  cmdInputs.addStringValueInput('TableInput_string{}'.format(_rowNumber), 'StringTable{}'.format(_rowNumber), rightlinkname)
-    elnnumInput =  cmdInputs.addStringValueInput('elnum{}'.format(_rowNumber), 'elnumTable{}'.format(_rowNumber), str(_rowNumber))
-    #spinnerInput = cmdInputs.addIntegerSpinnerCommandInput('spinnerInt{}'.format(_rowNumber), 'Integer Spinner', 0 , 100 , 2, int(_rowNumber))
-    slbutInput = cmdInputs.addBoolValueInput('butselectClick{}'.format(_rowNumber),'Select',  False,'', True)
+    stringInput =  cmdInputs.addStringValueInput('TableInput_string{}'.format(_elnum), 'StringTable{}'.format(_elnum), rightlinkname)
+    elnnumInput =  cmdInputs.addStringValueInput('elnum{}'.format(_elnum), 'elnumTable{}'.format(_elnum), str(_elnum))
+    #spinnerInput = cmdInputs.addIntegerSpinnerCommandInput('spinnerInt{}'.format(_elnum), 'Integer Spinner', 0 , 100 , 2, int(_elnum))
+    slbutInput = cmdInputs.addBoolValueInput('butselectClick{}'.format(_elnum),'Select',  False,'', True)
  
     
     
     elnnumInput.isEnabled = False
+    stringInput.isEnabled = False ##### i~m disabling the ability to change element~s name randomly...
     # Add the inputs to the table.
     row = tableInput.rowCount
     tableInput.addCommandInput( elnnumInput, row, 0)
@@ -703,7 +708,7 @@ def addRowToTable(tableInput,LinkOrJoint):
     # Increment a counter used to make each row unique.
     global _rowNumber, _thistree
     _rowNumber = _rowNumber + 1
-    
+    _elnum += 1
     
 
 # Event handler that reacts to any changes the user makes to any of the command inputs.
@@ -712,7 +717,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
         super().__init__()
     def notify(self, args):
         try:
-            global _thistree, currentel, _rowNumber     
+            global _thistree, currentel, _rowNumber, _oldrow, packagename
             
             eventArgs = adsk.core.InputChangedEventArgs.cast(args)
             inputs = eventArgs.inputs
@@ -736,47 +741,71 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
             else:
                 jointselInput = jointgroupInput.children.itemById('jointselection')             
             
-            if _thistree.currentel is not None:
-                oldrow = _thistree.currentel.row
-            else:
-                oldrow = -1
+#            if _thistree.currentel is not None:
+#                _oldrow = _thistree.currentel.row
+#            else:
+#                _oldrow = -1
                 
+   
             
-            
-################################################################
-            # set current link
-            ### if working in main context:
             if tableInput is not None:
-                setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
+                ################################################################
+                # set current link
+                ### if working in table contextÇ otherwise we do not want to change it.
+                if tableInput.selectedRow == -1:
+                    ### it means we have nothing selecte, so we don~t want to change anything
+                    pass
+                else:
+                    elementtobedefined = tableInput.getInputAtPosition(tableInput.selectedRow,0).value                
+                    setcurrel(elementtobedefined,debugInput, _oldrow, linkselInput, jointselInput)
                 
-                crnum = getrow('TableInput_value', cmdInput.id, tableInput.selectedRow,debugInput)
-                if crnum and tableInput.selectedRow != -1 and tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint' and tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled:
-                    tableInput.getInputAtPosition(tableInput.selectedRow,2).value = 'joint'+crnum
+#                crnum = getrow('TableInput_value', cmdInput.id, tableInput.selectedRow,debugInput)
+#                if crnum and tableInput.selectedRow != -1 and tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint' and tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled:
+#                    tableInput.getInputAtPosition(tableInput.selectedRow,2).value = 'joint'+crnum
     
                     #JorLTableInput
                     ### if it is different from what it was before, then i should change the name, right?
                     #_ui.messageBox('changedstuff! in row' + rowrow)
-                crnum = getrow('butselectClick', cmdInput.id, tableInput.selectedRow,debugInput)
+                crnum = getrow('butselectClick', cmdInput.id, tableInput,debugInput)
                 if crnum:
-                    linkselInput.clearSelection()
-                if cmdInput.id == 'tableCreate' and  tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled:           
-    
-                    tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled = False
-                    ### and create stuff!!!
-                    if tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Link':
-                        linkname = tableInput.getInputAtPosition(tableInput.selectedRow,2).value
-                        logging.debug('adding link:' + str(linkname))
-                        _thistree.addLink(linkname,tableInput.selectedRow)
-                        setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
-                    elif tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint':
-                        jointname = tableInput.getInputAtPosition(tableInput.selectedRow,2).value
-                        logging.debug('adding joint:' + str(jointname))
-                        _thistree.addJoint(jointname,tableInput.selectedRow)
-                        setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
-                        
-                crnum = getrow('TableInput_string', cmdInput.id, tableInput.selectedRow,debugInput)
-                if crnum:  
-                    pass
+                    if tableInput.selectedRow == -1:
+                        ### it means we have nothing selecte, so we don~t want to change anything
+                        pass
+                    else:
+                        elementtobedefined = tableInput.getInputAtPosition(tableInput.selectedRow,0).value                
+                        setcurrel(elementtobedefined,debugInput, _oldrow, linkselInput, jointselInput)
+                        #### it was getting complicated for me to debug this, so i am simpliflying the UI. i will only be able to change the name of the selected link. that's it. 
+                        #### i know clicking it changes the row - this doesn~t happen so nicely with the string, so i will use this
+                        tableInput.getInputAtPosition(tableInput.selectedRow,2).isEnabled = True
+                        if _oldrow != -1 and _oldrow != tableInput.selectedRow:
+                            tableInput.getInputAtPosition(_oldrow,2).isEnabled = False
+#                if cmdInput.id == 'tableCreate' and  tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled:           
+#    
+#                    tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled = False
+#                    ### and create stuff!!!
+#                    if tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Link':
+#                        linkname = tableInput.getInputAtPosition(tableInput.selectedRow,2).value
+#                        logging.debug('adding link:' + str(linkname))
+#                        _thistree.addLink(linkname,tableInput.selectedRow)
+#                        setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
+#                    elif tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint':
+#                        jointname = tableInput.getInputAtPosition(tableInput.selectedRow,2).value
+#                        logging.debug('adding joint:' + str(jointname))
+#                        _thistree.addJoint(jointname,tableInput.selectedRow)
+#                        setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
+                            
+                crnum = getrow('TableInput_string', cmdInput.id, tableInput,debugInput)
+                if crnum:
+                    ####should change the name of the current element here
+
+                    if tableInput.selectedRow == -1:
+                        ### it means we have nothing selecte, so we don~t want to change anything
+                        pass
+                    else:
+                        _thistree.currentel.name =  tableInput.getInputAtPosition(tableInput.selectedRow,2).value
+                        elementtobedefined = tableInput.getInputAtPosition(tableInput.selectedRow,0).value                
+                        setcurrel(elementtobedefined,debugInput, _oldrow, linkselInput, jointselInput)
+                    
                 
                 if cmdInput.id == 'packagename':
                     pkgnInput = inputs.itemById('packagename')
@@ -789,8 +818,8 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     logging.debug('adding joint. row number'+str(_rowNumber))
                     jointname = tableInput.getInputAtPosition(_rowNumber-1,2).value
                     logging.debug('adding joint:' + str(jointname))
-                    _thistree.addJoint(jointname,_rowNumber-1)
-                    setcurrel(_rowNumber-1,debugInput, oldrow, linkselInput, jointselInput)
+                    _thistree.addJoint(jointname,_elnum-1)
+                    #setcurrel(tableInput.getInputAtPosition(tableInput.selectedRow,0).value,debugInput, oldrow, linkselInput, jointselInput)
                     
                 if cmdInput.id == 'tableLinkAdd':
                     addRowToTable(tableInput,'Link')
@@ -798,8 +827,8 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     logging.debug('adding link. row number'+str(_rowNumber))
                     linkname = tableInput.getInputAtPosition(_rowNumber-1,2).value
                     logging.debug('adding link:' + str(linkname))
-                    _thistree.addLink(linkname,_rowNumber-1)
-                    setcurrel(_rowNumber-1,debugInput, oldrow, linkselInput, jointselInput)
+                    _thistree.addLink(linkname,_elnum-1)
+                    #setcurrel(tableInput.getInputAtPosition(tableInput.selectedRow,0).value,debugInput, oldrow, linkselInput, jointselInput)
                         
                 if cmdInput.id == 'tableAdd':
                     addRowToTable(tableInput,'')
@@ -808,7 +837,9 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                         _ui.messageBox('Select one row to delete.')
                     else:
                         ###this only works if every element is created as well...
-                        _thistree.rmElement(tableInput.selectedRow)
+                        logging.debug('trying to delete element from row:' + str(tableInput.selectedRow) + ' supposedly index:' + tableInput.getInputAtPosition(tableInput.selectedRow,0).value)
+                        elementnumbertoremove = tableInput.getInputAtPosition(tableInput.selectedRow,0).value
+                        _thistree.rmElement(elementnumbertoremove)
                         tableInput.deleteRow(tableInput.selectedRow)
                         
                 ### setting up visibility of joint and link group selection stufffs:
@@ -857,14 +888,22 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                _thistree.currentel.setjoint( jointselInput.selection(0).entity)
             
             if cmdInput.id == 'createtree':
+                #linkselInput.hasFocus = True #### if this is not set, then you cannot click OK idk why...
+                ### actually it is worse. if you don~t have a selection from the selection thing as active, it will not let you execute it.
+                ### so horrible not realy a fix:                
                 _thistree.gentree()
+                if linkselInput.selectionCount == 0 and jointselInput.selectionCount == 0:
+                    _ui.messageBox("one last thing: if you leave both joint and link selections without any thing select, fusion will believe it does not need to execute the command - so the OK will be grayed out. Moreover, if it either of them have focus, but don't have anything selected, it will show the OK button, but it will not execute anything. i currently don't know how to fix this without either saving the selection and repopulating them each time the user clicks on the select button- maybe a nice feature, but something that will take me some time to do, or adding subcommands to do those selections - something I am not sure if it is possible (it should be), but also will take me some time to get around doing. \n easiest way to fix this is go to a joint and reselect it, then run OK")
+                
+            if tableInput is not None:    
+                _oldrow = tableInput.selectedRow
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
 def setcurrel(tbsr,dbi, oldrow, linkselInput, jointselInput):
     global _thistree
-    _thistree.setcurrentel(tbsr)
+    _thistree.setcurrentel(int(tbsr))
     if _thistree.currentel is not None:
         row = _thistree.currentel.row
         if row != oldrow:
@@ -877,7 +916,12 @@ def setcurrel(tbsr,dbi, oldrow, linkselInput, jointselInput):
     dbi.text ='current element: '+ _thistree.getcurrenteldesc() +  '\n' + alllinkstr
 
 
-def getrow(commandstr,cmdid, tbsr, debugInput):
+def getrow(commandstr,cmdid, tableInput, debugInput):
+    if tableInput.selectedRow == -1:
+    ### it means we have nothing selecte, so we don~t want to change anything
+        pass
+    else:
+        elementtobedefined = tableInput.getInputAtPosition(tableInput.selectedRow,0).value    
     if commandstr in cmdid:
         _, crnum = cmdid.split(commandstr)
         #_thistree.setcurrentlink(tbsr)
@@ -894,6 +938,7 @@ class AddLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
         super().__init__()
     def notify(self, args):
         try:
+            logging.info("shutting down.")
             # When the command is done, terminate the script
             # This will release all globals which will remove all event handlers
             for handler in logging.root.handlers[:]:
