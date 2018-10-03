@@ -941,11 +941,19 @@ class AddLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
             logging.info("shutting down.")
             # When the command is done, terminate the script
             # This will release all globals which will remove all event handlers
-            for handler in logging.root.handlers[:]:
-                handler.close()
-                logging.root.removeHandler(handler)
-            
-            adsk.terminate()
+            if 0: # I am commenting this out, kinda. I want the
+               for handler in logging.root.handlers[:]:
+                   handler.close()
+                   logging.root.removeHandler(handler)
+
+            global _rowNumber, _elnum, _oldrow, packagename, numoflinks, numofjoints
+            _rowNumber = 0
+            _elnum = 0
+            _oldrow = -1
+            packagename = 'mypackage'
+            numoflinks = -1
+            numofjoints = -1
+            #adsk.terminate()
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
@@ -1175,6 +1183,17 @@ def run(context):
             logging.root.removeHandler(handler)
         logging.basicConfig(filename=os.path.join(os.path.expanduser("~"),'urdfgen.log'),level=logging.DEBUG)
 
+        
+        workSpace = _ui.workspaces.itemById('FusionSolidEnvironment')
+        tbPanels = workSpace.toolbarPanels
+        
+#        global tbPanel
+        tbPanel = tbPanels.itemById('SolidScriptsAddinsPanel')
+#        if tbPanel:
+#            tbPanel.deleteMe()
+#        tbPanel = tbPanels.add('NewPanel', 'New Panel', 'SolidScriptsAddinsPanel', False)
+
+
         # Get the existing command definition or create it if it doesn't already exist.
         addlinkcmdDef = _ui.commandDefinitions.itemById('cmdInputsAddLink')
         if not addlinkcmdDef:
@@ -1185,13 +1204,18 @@ def run(context):
         addlinkcmdDef.commandCreated.add(onCommandCreated)
         _handlers.append(onCommandCreated)
         
+        
+        # will try to create a button for this guy
+        
+        tbPanel.controls.addCommand(addlinkcmdDef)          
+        
         _thistree = UrdfTree()
                
         # Execute the command definition.
-        addlinkcmdDef.execute()
+        #addlinkcmdDef.execute()
         
         # Prevent this module from being terminated when the script returns, because we are waiting for event handlers to fire.
-        adsk.autoTerminate(False)
+        #adsk.autoTerminate(False)
         
     except:
         if _ui:
