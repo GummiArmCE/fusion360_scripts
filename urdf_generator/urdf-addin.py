@@ -16,6 +16,8 @@ _rowNumber = 0
 _elnum = 0
 _oldrow = -1
 
+runfrommenu = 0
+
 packagename = 'mypackage'
 numoflinks = -1
 numofjoints = -1
@@ -809,7 +811,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 
                 if cmdInput.id == 'packagename':
                     pkgnInput = inputs.itemById('packagename')
-                    packagename = pkgnInput.text
+                    packagename = pkgnInput.value
                     
                 if cmdInput.id == 'tableJointAdd':
                     addRowToTable(tableInput,'Joint')
@@ -941,7 +943,7 @@ class AddLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
             logging.info("shutting down.")
             # When the command is done, terminate the script
             # This will release all globals which will remove all event handlers
-            if 0: # I am commenting this out, kinda. I want the
+            if runfrommenu: 
                for handler in logging.root.handlers[:]:
                    handler.close()
                    logging.root.removeHandler(handler)
@@ -953,7 +955,8 @@ class AddLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
             packagename = 'mypackage'
             numoflinks = -1
             numofjoints = -1
-            #adsk.terminate()
+            if runfrommenu:
+                adsk.terminate()
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
@@ -1198,21 +1201,29 @@ def run(context):
         addlinkcmdDef = _ui.commandDefinitions.itemById('cmdInputsAddLink')
         if not addlinkcmdDef:
             addlinkcmdDef = _ui.commandDefinitions.addButtonDefinition('cmdInputsAddLink', 'Make URDF', 'My attempt to make an URDF.')
+        else:
+            pass
 
         # Connect to the command created event.
         onCommandCreated = AddLinkCommandCreatedHandler()
         addlinkcmdDef.commandCreated.add(onCommandCreated)
         _handlers.append(onCommandCreated)
         
-        
-        # will try to create a button for this guy
-        
-        tbPanel.controls.addCommand(addlinkcmdDef)          
-        
         _thistree = UrdfTree()
-               
-        # Execute the command definition.
-        #addlinkcmdDef.execute()
+        if runfrommenu:
+            
+            # will try to create a button for this guy
+            # but first morruca
+            while tbPanel.controls.itemById('cmdInputsAddLink'):
+                a = tbPanel.controls.itemById('cmdInputsAddLink')
+                a.deleteMe
+            
+            tbPanel.controls.addCommand(addlinkcmdDef)          
+            
+            
+        else:
+            # Execute the command definition.
+            addlinkcmdDef.execute()
         
         # Prevent this module from being terminated when the script returns, because we are waiting for event handlers to fire.
         #adsk.autoTerminate(False)
