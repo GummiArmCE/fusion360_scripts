@@ -556,9 +556,11 @@ class Joint:
         self.row = row # i am not sure why i am savign this...
         self.isJoint = True
         self.isset = False
+        self.entity = None ## this will have the whole joint that created this joint instance. sort of dumb, but it is the way I can repopulate the selections... 
     def setjoint(self,joint):#,parentl,childl):
         self.isset = True
         self.generatingjointname = joint.name
+        self.entity = joint ### i need this to repopulate selection, but I know it might break the code even more...
         #self.parentlink = parentl
         #self.childlink = childl
         
@@ -771,7 +773,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 crnum = getrow('butselectClick', cmdInput.id, tableInput,debugInput)
                 if crnum:
                     if tableInput.selectedRow == -1:
-                        ### it means we have nothing selecte, so we don~t want to change anything
+                        ### it means we have nothing selected, so we don~t want to change anything
                         pass
                     else:
                         elementtobedefined = tableInput.getInputAtPosition(tableInput.selectedRow,0).value                
@@ -781,6 +783,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                         tableInput.getInputAtPosition(tableInput.selectedRow,2).isEnabled = True
                         if _oldrow != -1 and _oldrow != tableInput.selectedRow:
                             tableInput.getInputAtPosition(_oldrow,2).isEnabled = False
+                        
 #                if cmdInput.id == 'tableCreate' and  tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled:           
 #    
 #                    tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled = False
@@ -910,7 +913,18 @@ def setcurrel(tbsr,dbi, oldrow, linkselInput, jointselInput):
         row = _thistree.currentel.row
         if row != oldrow:
             linkselInput.clearSelection()
-            jointselInput.clearSelection()                
+            jointselInput.clearSelection()   
+            #### So I also want to change the current selection so that people can see what they did:
+            if 'isLink' in dir(_thistree.currentel) and _thistree.currentel.isLink: #link is selected
+                #pass
+                # linkselInput.addSelection
+                for i in range(0, len(_thistree.currentel.group)):
+                    linkselInput.addSelection(_thistree.currentel.group[i])
+            elif 'isJoint' in dir(_thistree.currentel) and _thistree.currentel.isJoint: #joint is selected
+                #pass
+                # jointselInput    
+                if _thistree.currentel.entity:
+                    jointselInput.addSelection(_thistree.currentel.entity)
     else:
         row = oldrow
     alllinkstr, _ = _thistree.allElements()
@@ -1229,5 +1243,26 @@ def run(context):
         #adsk.autoTerminate(False)
         
     except:
+        #i need to close and destroy stuff otherwise Fusion crashes...
+        try:
+            logging.info("shutting down from failure or debugquit.")
+            # When the command is done, terminate the script
+            # This will release all globals which will remove all event handlers
+            if runfrommenu: 
+               for handler in logging.root.handlers[:]:
+                   handler.close()
+                   logging.root.removeHandler(handler)
+
+            global _rowNumber, _elnum, _oldrow, packagename, numoflinks, numofjoints
+            _rowNumber = 0
+            _elnum = 0
+            _oldrow = -1
+            packagename = 'mypackage'
+            numoflinks = -1
+            numofjoints = -1
+            if runfrommenu:
+                adsk.terminate()
+        except:
+            _ui.messageBox('Failed in shutdown sequence!:\n{}'.format(traceback.format_exc()))
         if _ui:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
