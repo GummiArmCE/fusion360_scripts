@@ -579,9 +579,13 @@ class Joint:
         try:
             self.origin.setxyz(joint.geometryOrOriginOne.origin.x, joint.geometryOrOriginOne.origin.y, joint.geometryOrOriginOne.origin.z)
         except:
-            logging.error('could not set joint origin. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
-        ### TODO so I am not using the base occurrences to set this joint - i am not using .geometryOrOriginTwo for anythin - so I might be making mistakes in prismatic joints - who uses those??? - so I should check to see if they are same and warn at least in case they are not...
-            logging.warn('Could not set joint origins for joint' + self.name+'. You need to edit the URDF and fix it manually.')
+            try:
+                self.origin.setxyz(joint.geometryOrOriginTwo.origin.x, joint.geometryOrOriginTwo.origin.y, joint.geometryOrOriginTwo.origin.z)
+            except:                        
+                _ui.messageBox('Could not set joint origin. This will affect the whole assembly and it will be hard to fix!!! This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
+                logging.error('Could not set joint origin. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
+            ### TODO so I am not using the base occurrences to set this joint - i am not using .geometryOrOriginTwo for anythin - so I might be making mistakes in prismatic joints - who uses those??? - so I should check to see if they are same and warn at least in case they are not...
+                logging.warn('Could not set joint origins for joint: ' + self.name+'. You need to edit the URDF and fix it manually.')
 
         try:
             if joint.jointMotion.jointType is 1:
@@ -602,7 +606,8 @@ class Joint:
                 self.type = "continuous"
         except:
             self.type = "fixed" ## i still want to produce some sort of URDF. hopefully this will be a bad one, but recoverable by changing offsets and joint type/angles
-            logging.debug('could not set joint type or limits. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
+            logging.debug('could not set joint type or limits. Setting it to fixed. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
+            _ui.messageBox('could not set joint type or limits. Setting it to fixed. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
             logging.warn('Could not set joint type for joint' + self.name+'. You need to edit the URDF and fix it manually.')
 
     def setrealorigin(self, fathercoordinatesystem):
@@ -875,7 +880,10 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 _thistree.currentel.group = [] #### i refer to element, but i know it is a link!
                 for i in range(0, linkselInput.selectionCount):
                     if linkselInput.selection(i).entity not in _thistree.currentel.group:
+                        logging.debug('adding link entity:'+ linkselInput.selection(i).entity.name)
                         _thistree.currentel.group.append( linkselInput.selection(i).entity)
+                        if "PRT" in linkselInput.selection(i).entity.name:
+                            pass
                         ##TODO:
                         # REMOVE child occurrences that can be in the list, or they will be doubled in generating the link -> larger mesh, wrong weight and moments of inertia
                         #logging.debug(dir(linkselInput.selection(i).entity))
@@ -890,6 +898,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 _thistree.currentel.childlink = aa[1]
 
             if cmdInput.id == 'jointselection' and jointselInput.selectionCount == 1:
+               logging.debug('adding joint entity:'+ linkselInput.selection(0).entity.name)
                _thistree.currentel.setjoint( jointselInput.selection(0).entity)
             
             if cmdInput.id == 'createtree':
@@ -1198,9 +1207,9 @@ def run(context):
         
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
-        logging.basicConfig(filename=os.path.join(os.path.expanduser("~"),'urdfgen.log'),level=logging.DEBUG)
+        FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(levelname)s: %(message)s"
+        logging.basicConfig(filename=os.path.join(os.path.expanduser("~"),'urdfgen.log'),level=logging.DEBUG,format=FORMAT)
 
-        
         workSpace = _ui.workspaces.itemById('FusionSolidEnvironment')
         tbPanels = workSpace.toolbarPanels
         
