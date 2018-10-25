@@ -579,6 +579,7 @@ class Joint:
         try:
             self.origin.setxyz(joint.geometryOrOriginOne.origin.x, joint.geometryOrOriginOne.origin.y, joint.geometryOrOriginOne.origin.z)
         except:
+            logging.warn('Could not set joint origin with OriginOne for joint: ' + self.name+'. The generated urdf will probably be incorrect!')
             try:
                 self.origin.setxyz(joint.geometryOrOriginTwo.origin.x, joint.geometryOrOriginTwo.origin.y, joint.geometryOrOriginTwo.origin.z)
             except:                        
@@ -685,7 +686,8 @@ def addRowToTable(tableInput,LinkOrJoint):
     
     # Create three new command inputs.
     #valueInput = cmdInputs.addTextBoxCommandInput('TableInput_value{}'.format(_elnum), 'JorL', 'Link',1,True)
-    JorLInput = cmdInputs.addDropDownCommandInput('TableInput_value{}'.format(_elnum), 'JorLTable{}'.format(_elnum), adsk.core.DropDownStyles.TextListDropDownStyle)
+    #JorLInput = cmdInputs.addDropDownCommandInput('TableInput_value{}'.format(_elnum), 'JorLTable{}'.format(_elnum), adsk.core.DropDownStyles.TextListDropDownStyle)
+    JorLInput = cmdInputs.addDropDownCommandInput('TableInput_value', 'JorLTable', adsk.core.DropDownStyles.TextListDropDownStyle)
     dropdownItems = JorLInput.listItems
     dropdownItems.add('Link', dropdownthingy, '')
     dropdownItems.add('Joint', not dropdownthingy,'')   
@@ -708,10 +710,11 @@ def addRowToTable(tableInput,LinkOrJoint):
     # Add the inputs to the table.
     row = tableInput.rowCount
     tableInput.addCommandInput( elnnumInput, row, 0)
+    
     tableInput.addCommandInput(JorLInput, row, 1)
-    #tableInput.addCommandInput(valueInput, row, 0)
+    ##tableInput.addCommandInput(valueInput, row, 0)
     tableInput.addCommandInput(stringInput, row, 2)
-    #tableInput.addCommandInput(spinnerInput, row, 2)
+    ##tableInput.addCommandInput(spinnerInput, row, 2)
     tableInput.addCommandInput(slbutInput, row, 3)
     
     # Increment a counter used to make each row unique.
@@ -733,7 +736,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
             cmdInput = eventArgs.input
             
             #linkInput = inputs.itemById('linkname')
-            JorLNameInput = inputs.itemById('StringTable')
+            #JorLNameInput = inputs.itemById('StringTable')
 
             tableInput = inputs.itemById('table')
             debugInput = inputs.itemById('debugbox')
@@ -878,15 +881,19 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     _ui.messageBox('Must create link or joint before selecting!')
                     return
                 _thistree.currentel.group = [] #### i refer to element, but i know it is a link!
+                logging.debug('clearing current group!')
                 for i in range(0, linkselInput.selectionCount):
                     if linkselInput.selection(i).entity not in _thistree.currentel.group:
-                        logging.debug('adding link entity:'+ linkselInput.selection(i).entity.name)
+                        logging.debug('old row:' + str(_oldrow))
+                        logging.debug('adding entity:'+ linkselInput.selection(i).entity.name +' to link definition:' +  _thistree.currentel.name )
                         _thistree.currentel.group.append( linkselInput.selection(i).entity)
                         if "PRT" in linkselInput.selection(i).entity.name:
                             pass
-                        ##TODO:
-                        # REMOVE child occurrences that can be in the list, or they will be doubled in generating the link -> larger mesh, wrong weight and moments of inertia
-                        #logging.debug(dir(linkselInput.selection(i).entity))
+                ##TODO:
+                # REMOVE child occurrences that can be in the list, or they will be doubled in generating the link -> larger mesh, wrong weight and moments of inertia
+                # for through group, creates list of all the entities with full path
+                # 
+
             if cmdInput.id == 'parentlinkname':
                 pln = inputs.itemById('parentlinkname')
                 aa= pln.selectedItem.name.split('link: ')
@@ -898,7 +905,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 _thistree.currentel.childlink = aa[1]
 
             if cmdInput.id == 'jointselection' and jointselInput.selectionCount == 1:
-               logging.debug('adding joint entity:'+ linkselInput.selection(0).entity.name)
+               logging.debug('adding entity:'+ jointselInput.selection(0).entity.name + 'to joint definition:' + _thistree.currentel.name)
                _thistree.currentel.setjoint( jointselInput.selection(0).entity)
             
             if cmdInput.id == 'createtree':
@@ -928,11 +935,15 @@ def setcurrel(tbsr,dbi, oldrow, linkselInput, jointselInput):
                 #pass
                 # linkselInput.addSelection
                 for i in range(0, len(_thistree.currentel.group)):
+                    logging.debug('current row:'+ str(row))
+                    logging.debug('adding link to selection group:'+_thistree.currentel.group[i].name)                    
                     linkselInput.addSelection(_thistree.currentel.group[i])
             elif 'isJoint' in dir(_thistree.currentel) and _thistree.currentel.isJoint: #joint is selected
                 #pass
                 # jointselInput    
                 if _thistree.currentel.entity:
+                    logging.debug('current row:'+ str(row))
+                    logging.debug('adding joint to selection '+_thistree.currentel.entity.name)
                     jointselInput.addSelection(_thistree.currentel.entity)
     else:
         row = oldrow
@@ -981,7 +992,12 @@ class AddLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
             if runfrommenu:
                 adsk.terminate()
         except:
-            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            logging.error('Failed while executing command destroy:\n{}'.format(traceback.format_exc()))
+            if runfrommenu: 
+               for handler in logging.root.handlers[:]:
+                   handler.close()
+                   logging.root.removeHandler(handler)
+            _ui.messageBox('Failed while executing command destroy:\n{}'.format(traceback.format_exc()))
 
 
 class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
@@ -1042,8 +1058,8 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
             # Code to react to the event.
             #_ui.messageBox('In MyExecuteHandler event handler.')
         except:
-            logging.error('Failed:\n{}'.format(traceback.format_exc()))
-            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            logging.error('Failed during execute:\n{}'.format(traceback.format_exc()))
+            _ui.messageBox('Failed during execute:\n{}'.format(traceback.format_exc()))
         
 # Event handler that reacts when the command definitio is executed which
 # results in the command being created and this event being fired.
