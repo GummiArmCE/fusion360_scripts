@@ -463,6 +463,7 @@ class Link:
                 
             # Create a document.
             doc = _app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
+            doc.name = self.name
             
             product = _app.activeProduct
             design = adsk.fusion.Design.cast(product)
@@ -707,12 +708,17 @@ def addRowToTable(tableInput,LinkOrJoint):
     stringInput.isEnabled = False ##### i~m disabling the ability to change element~s name randomly...
     # Add the inputs to the table.
     row = tableInput.rowCount
-    tableInput.addCommandInput( elnnumInput, row, 0)
-    tableInput.addCommandInput(JorLInput, row, 1)
+    ha0 = tableInput.addCommandInput( elnnumInput, row, 0)
+    ha1 = tableInput.addCommandInput(JorLInput, row, 1)
     #tableInput.addCommandInput(valueInput, row, 0)
-    tableInput.addCommandInput(stringInput, row, 2)
+    ha2 = tableInput.addCommandInput(stringInput, row, 2)
     #tableInput.addCommandInput(spinnerInput, row, 2)
-    tableInput.addCommandInput(slbutInput, row, 3)
+    ha3 = tableInput.addCommandInput(slbutInput, row, 3)
+    
+    print(ha0)
+    print(ha1)    
+    print(ha2)
+    print(ha3)
     
     # Increment a counter used to make each row unique.
     global _rowNumber, _thistree
@@ -898,7 +904,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 _thistree.currentel.childlink = aa[1]
 
             if cmdInput.id == 'jointselection' and jointselInput.selectionCount == 1:
-               logging.debug('adding joint entity:'+ linkselInput.selection(0).entity.name)
+               logging.debug('adding joint entity:'+ jointselInput.selection(0).entity.name)
                _thistree.currentel.setjoint( jointselInput.selection(0).entity)
             
             if cmdInput.id == 'createtree':
@@ -1074,20 +1080,23 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             
 
             # Create a tab input.
-            tabCmdInput3 = inputs.addTabCommandInput('tab_1', 'Add Link')
+            tabCmdInput3 = inputs.addTabCommandInput('tab_1', 'Add Link')   
             tab3ChildInputs = tabCmdInput3.children
             
             
             tab3ChildInputs.addStringValueInput('packagename','Name of your URDF package', packagename)
             # Create table input
             tableInput = tab3ChildInputs.addTableCommandInput('table', 'Table', 3, '1:2:3:1')
-            addRowToTable(tableInput,'Link')
             
-            tableInput.getInputAtPosition(_rowNumber-1,1).isEnabled = False
-            logging.debug('adding link. row number'+str(_rowNumber))
-            linkname = tableInput.getInputAtPosition(_rowNumber-1,2).value
-            logging.debug('adding link:' + str(linkname))
-            _thistree.addLink(linkname,_rowNumber-1)
+            tableInput.maximumVisibleRows = 20            
+            tableInput.minimumVisibleRows = 10
+#            addRowToTable(tableInput,'Link')
+#            
+#            tableInput.getInputAtPosition(_rowNumber-1,1).isEnabled = False
+#            logging.debug('adding link. row number'+str(_rowNumber))
+#            linkname = tableInput.getInputAtPosition(_rowNumber-1,2).value
+#            logging.debug('adding link:' + str(linkname))
+#            _thistree.addLink(linkname,_rowNumber-1)
 
 
             # Add inputs into the table.            
