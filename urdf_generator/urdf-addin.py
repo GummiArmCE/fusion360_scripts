@@ -671,6 +671,48 @@ def spaces(spaceCount):
     return result
 
 
+def setcurrel(tbsr,dbi, oldrow, linkselInput, jointselInput):
+    global _thistree
+    _thistree.setcurrentel(int(tbsr))
+    if _thistree.currentel is not None:
+        row = _thistree.currentel.row
+        if row != oldrow:
+            linkselInput.clearSelection()
+            jointselInput.clearSelection()   
+            #### So I also want to change the current selection so that people can see what they did:
+            if 'isLink' in dir(_thistree.currentel) and _thistree.currentel.isLink: #link is selected
+                #pass
+                # linkselInput.addSelection
+                for i in range(0, len(_thistree.currentel.group)):
+                    linkselInput.addSelection(_thistree.currentel.group[i])
+            elif 'isJoint' in dir(_thistree.currentel) and _thistree.currentel.isJoint: #joint is selected
+                #pass
+                # jointselInput    
+                if _thistree.currentel.entity:
+                    jointselInput.addSelection(_thistree.currentel.entity)
+    else:
+        row = oldrow
+    alllinkstr, _ = _thistree.allElements()
+    #dbi.text =str(oldrow)+'\t'+str(row)+'\n'+'current element: '+ _thistree.getcurrenteldesc() +  '\n' + alllinkstr
+    dbi.text ='current element: '+ _thistree.getcurrenteldesc() +  '\n' + alllinkstr
+
+
+def getrow(commandstr,cmdid, tableInput, debugInput):
+    if tableInput.selectedRow == -1:
+    ### it means we have nothing selecte, so we don~t want to change anything
+        pass
+    else:
+        elementtobedefined = tableInput.getInputAtPosition(tableInput.selectedRow,0).value    
+    if commandstr in cmdid:
+        _, crnum = cmdid.split(commandstr)
+        #_thistree.setcurrentlink(tbsr)
+        #print('this when accessing table row' + crnum + str(tbsr))
+        #        logging.debug('this when accessing table row' + crnum + str(tbsr))
+
+        return crnum
+    else:
+        return False
+
 # Adds a new row to the table.
 def addRowToTable(tableInput,LinkOrJoint):
     global numoflinks, numofjoints, _elnum
@@ -920,48 +962,6 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
-
-def setcurrel(tbsr,dbi, oldrow, linkselInput, jointselInput):
-    global _thistree
-    _thistree.setcurrentel(int(tbsr))
-    if _thistree.currentel is not None:
-        row = _thistree.currentel.row
-        if row != oldrow:
-            linkselInput.clearSelection()
-            jointselInput.clearSelection()   
-            #### So I also want to change the current selection so that people can see what they did:
-            if 'isLink' in dir(_thistree.currentel) and _thistree.currentel.isLink: #link is selected
-                #pass
-                # linkselInput.addSelection
-                for i in range(0, len(_thistree.currentel.group)):
-                    linkselInput.addSelection(_thistree.currentel.group[i])
-            elif 'isJoint' in dir(_thistree.currentel) and _thistree.currentel.isJoint: #joint is selected
-                #pass
-                # jointselInput    
-                if _thistree.currentel.entity:
-                    jointselInput.addSelection(_thistree.currentel.entity)
-    else:
-        row = oldrow
-    alllinkstr, _ = _thistree.allElements()
-    #dbi.text =str(oldrow)+'\t'+str(row)+'\n'+'current element: '+ _thistree.getcurrenteldesc() +  '\n' + alllinkstr
-    dbi.text ='current element: '+ _thistree.getcurrenteldesc() +  '\n' + alllinkstr
-
-
-def getrow(commandstr,cmdid, tableInput, debugInput):
-    if tableInput.selectedRow == -1:
-    ### it means we have nothing selecte, so we don~t want to change anything
-        pass
-    else:
-        elementtobedefined = tableInput.getInputAtPosition(tableInput.selectedRow,0).value    
-    if commandstr in cmdid:
-        _, crnum = cmdid.split(commandstr)
-        #_thistree.setcurrentlink(tbsr)
-        #print('this when accessing table row' + crnum + str(tbsr))
-        #        logging.debug('this when accessing table row' + crnum + str(tbsr))
-
-        return crnum
-    else:
-        return False
 
 # Event handler that reacts to when the command is destroyed. This terminates the script.            
 class AddLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
