@@ -27,6 +27,10 @@ numofjoints = -1
 _handlers = []
 _thistree = None
 
+#necessary globals
+fixmeinstances = []
+
+
 class UrdfTree:
     def __init__(self):
         self.elementsdict = {}
@@ -533,6 +537,8 @@ class Link:
             
             logging.debug('trying to create command and handle for fixing links')
             try:            
+                # let's add this fixmeinstance to global fixme handle:
+                fixmeinstances.append(self.name)
                 #create new command definition for our additional command
                 # Get the existing command definition or create it if it doesn't already exist.
                 fixlinkcmdDef = _ui.commandDefinitions.itemById('cmdInputsFixLink_'+self.name)
@@ -1059,6 +1065,11 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
                     allels[i].genlink(meshes_directory, components_directory)
             #currentlink.name = linkInput.value
                 allels[i].makexml(urdfroot)    
+                
+                
+            ##### somewhere around here i will need to call another command(not sure if it is possible)
+                ### actually I just need to wait to see if all fixcommands have finished, no other command necessary,
+                #let's try to catch fixlinkexecutes
             
             tree = etree.ElementTree(urdfroot)
             root = tree.getroot()
@@ -1196,7 +1207,46 @@ class FixLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
         super().__init__()
     def notify(self, args):
         try:
-            pass
+            eventArgs = adsk.core.InputChangedEventArgs.cast(args)
+            inputs = eventArgs.inputs
+            cmdInput = eventArgs.input
+            
+            #linkInput = inputs.itemById('linkname')
+            distanceValue1Input = inputs.itemById('distanceValue')
+            distanceValue2Input = inputs.itemById('distanceValue2')
+            distanceValue3Input = inputs.itemById('distanceValue3')
+            
+            angleValue1Input = inputs.itemById('angleValue')
+            angleValue2Input = inputs.itemById('angleValue2')
+            angleValue3Input = inputs.itemById('angleValue3')
+            
+            if cmdInput.id == 'distanceValue2':            
+                distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
+                #distanceValue3Input.manipulatorOrigin.y = distanceValue2Input.value
+                angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+                angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+                angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+                
+            if cmdInput.id == 'distanceValue3':            
+                #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+                angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+                angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+                angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))           
+ 
+            if cmdInput.id == 'distanceValue':            
+                #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+                distanceValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+                distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
+                angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+                angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+                angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+                
+                
+            tableInput = inputs.itemById('table')
+            debugInput = inputs.itemById('debugbox')
+            linkgroupInput = inputs.itemById('linkgroup')
+            jointgroupInput = inputs.itemById('jointgroup')
+            
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
@@ -1207,7 +1257,7 @@ class FixLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
         super().__init__()
     def notify(self, args):
         try:
-            logging.info("Closing fixlink.")
+            logging.info("Closing fixlink.")    
             # don't know yet what else I need to do. 
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
@@ -1316,12 +1366,56 @@ class FixLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             
 
             # Create a tab input.
-            tabCmdInput = inputs.addTabCommandInput('tab_1', 'Fix Link')   
-            tabChildInputs = tabCmdInput.children
+            tab1CmdInput = inputs.addTabCommandInput('tab_1', 'Fix Link')   
+            tab1ChildInputs = tab1CmdInput.children
             
             # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
             message = '<div align="center">For more information on how to create an URDF, visit <a href="http:lmgtfy.com/?q=how+to+create+an+urdf">our website.</a></div>'
-            tabChildInputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)   
+            tab1ChildInputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)   
+            
+            # Create distance value input 1.
+            distanceValueInput = tab1ChildInputs.addDistanceValueCommandInput('distanceValue', 'X', adsk.core.ValueInput.createByReal(2))
+            distanceValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0))
+            distanceValueInput.hasMinimumValue = False
+            distanceValueInput.hasMaximumValue = False
+            
+            # Create distance value input 2.
+            distanceValueInput2 = tab1ChildInputs.addDistanceValueCommandInput('distanceValue2', 'Y', adsk.core.ValueInput.createByReal(1))
+            distanceValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            distanceValueInput2.hasMinimumValue = False
+            distanceValueInput2.hasMaximumValue = False
+            
+            # Create distance value input 3.
+            distanceValueInput3 = tab1ChildInputs.addDistanceValueCommandInput('distanceValue3', 'Z', adsk.core.ValueInput.createByReal(3))
+            distanceValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1))
+            distanceValueInput3.hasMinimumValue = False
+            distanceValueInput3.hasMaximumValue = False     
+
+            # Create angle value input 1.
+            angleValueInput = tab1ChildInputs.addAngleValueCommandInput('angleValue', 'Roll', adsk.core.ValueInput.createByReal(2))
+            angleValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+            angleValueInput.hasMinimumValue = False
+            angleValueInput.hasMaximumValue = False
+            
+            # Create angle value input 2.
+            angleValueInput2 = tab1ChildInputs.addAngleValueCommandInput('angleValue2', 'Pitch', adsk.core.ValueInput.createByReal(1))
+            angleValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+            angleValueInput2.hasMinimumValue = False
+            angleValueInput2.hasMaximumValue = False
+            
+            # Create angle value input 3.
+            angleValueInput3 = tab1ChildInputs.addAngleValueCommandInput('angleValue3', 'Yaw', adsk.core.ValueInput.createByReal(3))
+            angleValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            angleValueInput3.hasMinimumValue = False
+            angleValueInput3.hasMaximumValue = False                        
+            
+            # Create a tab input.
+            tab2CmdInput = inputs.addTabCommandInput('tab_2', 'Fix Joint')   
+            tab2ChildInputs = tab2CmdInput.children
+            
+            # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
+            message = '<div align="center">For more information on how to create an URDF, visit <a href="http:lmgtfy.com/?q=how+to+create+an+urdf">our website.</a></div>'
+            tab2ChildInputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)   
            
         except:
             _ui.messageBox('Failed while creating FixLinkCommand:\n{}'.format(traceback.format_exc()))
