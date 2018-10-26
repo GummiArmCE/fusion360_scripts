@@ -9,6 +9,7 @@ import re
 import os , sys
 #from copy import deepcopy ### pickle cant copy any swig object...
 
+#TODO: remove these unnecessary globals. I am pretty sure things like row numbers should be locals...
 _app = None
 _ui  = None
 _design = None
@@ -242,7 +243,7 @@ class UrdfTree:
         return exstr,allels
         
     def getel(self,selected):
-        logging.debug('selected' + str(selected))
+        logging.debug('selected: ' + str(selected))
         logging.debug('len...' + str(len(self.elementsdict)))
         if selected not in self.elementsdict:
             return None
@@ -529,6 +530,35 @@ class Link:
             #    stlRootOptions.sendToPrintUtility = True
             #   stlRootOptions.printUtility = printUtil
             stlRootOptions.sendToPrintUtility = False
+            
+            logging.debug('trying to create command and handle for fixing links')
+            try:            
+                #create new command definition for our additional command
+                # Get the existing command definition or create it if it doesn't already exist.
+                fixlinkcmdDef = _ui.commandDefinitions.itemById('cmdInputsFixLink_'+self.name)
+                if not fixlinkcmdDef:
+                    fixlinkcmdDef = _ui.commandDefinitions.addButtonDefinition('cmdInputsFixLink_'+self.name, 'Fixes Link'+self.name, 'Fixes current link and parent joint.')
+                else:
+                    pass
+        
+                # Connect to the command created event.
+                
+                onCommandCreated = FixLinkCommandCreatedHandler()
+                fixlinkcmdDef.commandCreated.add(onCommandCreated)
+                _handlers.append(onCommandCreated)     
+                ## just for test, shoulb be commented out and removed when everything is functional
+                fixlinkcmdDef.execute()
+                ##
+                
+                logging.debug('fixcmd handles created successfully!')
+            except:
+                errormsg = 'Failed while creating fixlink cmd:\n{}'.format(traceback.format_exc())
+                logging.error(errormsg)
+                _ui.messageBox(errormsg)
+                logging.error('while trying to create command and handle for fixing links')
+                        
+            
+            ###### this should be done in the execute part of fixlink!
             logging.info('saving STL file: '+ meshes_directory+'/' + stlname )
             exportMgr.execute(stlRootOptions)            
             
@@ -775,7 +805,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
     def notify(self, args):
         try:
             global _thistree, currentel, _rowNumber, _oldrow, packagename
-            
+            #TODO: clean this up!
             eventArgs = adsk.core.InputChangedEventArgs.cast(args)
             inputs = eventArgs.inputs
             cmdInput = eventArgs.input
@@ -969,7 +999,7 @@ class AddLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
         super().__init__()
     def notify(self, args):
         try:
-            logging.info("shutting down.")
+            logging.info('shutting down\n{}'.format(traceback.format_exc()))
             # When the command is done, terminate the script
             # This will release all globals which will remove all event handlers
             if runfrommenu: 
@@ -994,8 +1024,10 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
-        try:
-            logging.debug('started execute! ')
+        logging.debug('started execute! ')
+        try:     
+            
+            
             global _thistree
             #eventArgs = adsk.core.CommandEventArgs.cast(args)    
             #inputs = eventArgs.inputs
@@ -1020,7 +1052,7 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
 #            #currentlink.name = linkInput.value
 #            _thistree.currentlink.makelinkxml(urdfroot)      
             allelstr, allels =  _thistree.allElements()
-            logging.info('found '+ str(len(allels)) + allelstr)            
+            logging.info('found '+ str(len(allels))+'elements\n' + allelstr)            
             
             for i in range(0,len(allels)):
                 if 'isLink' in dir(allels[i]) and allels[i].isLink:
@@ -1156,6 +1188,144 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
+##############################################################################
+
+# Event handler that reacts to any changes the user makes to any of the command inputs.
+class FixLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            pass
+        except:
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+
+# Event handler that reacts to when the command is destroyed. This terminates the script.            
+class FixLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            logging.info("Closing fixlink.")
+            # don't know yet what else I need to do. 
+        except:
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+
+class FixLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            logging.debug('started executing after link has been fixed! ')
+            
+            #Am I an instance or am I global?
+            
+            product = _app.activeProduct
+            logging.debug('this instance is in:' + product.parentDocument.name)
+            #this_design = adsk.fusion.Design.cast(product)
+            ##### this will be done by the AddLinkCommandExectuteHandler >>>>>>
+#            global _thistree
+#            #eventArgs = adsk.core.CommandEventArgs.cast(args)    
+#            #inputs = eventArgs.inputs
+#            #cmdInput = eventArgs.input
+#    
+#            base_directory, meshes_directory, components_directory = createpaths(packagename)
+#            
+#            urdfroot = etree.Element("robot", name = "gummi")
+#            
+#            base_link = Link('base_link',-1)
+#            base_link.makexml(urdfroot)
+#            #
+#            setaxisjoint = Joint('set_worldaxis',-1)
+#            setaxisjoint.isset = True
+#            setaxisjoint.type = "fixed"
+#            setaxisjoint.realorigin.rpy = str(3.14159265359/2)+' 0 0'
+#            setaxisjoint.parentlink = 'base_link'
+#            setaxisjoint.childlink = 'base'
+#            setaxisjoint.makexml(urdfroot)
+#            
+##            _thistree.currentlink.genlink(meshes_directory)
+##            #currentlink.name = linkInput.value
+##            _thistree.currentlink.makelinkxml(urdfroot)      
+#            allelstr, allels =  _thistree.allElements()
+#            logging.info('found '+ str(len(allels)) + allelstr)            
+#            #############################
+            #somewhere around here this should be executed in the fixlinkcommand instead!            
+            
+            
+            
+            
+#            for i in range(0,len(allels)):
+#                if 'isLink' in dir(allels[i]) and allels[i].isLink:
+#                    allels[i].genlink(meshes_directory, components_directory)
+#            #currentlink.name = linkInput.value
+#                allels[i].makexml(urdfroot)    
+#            
+#            tree = etree.ElementTree(urdfroot)
+#            root = tree.getroot()
+#            treestring = etree.tostring(root)
+#            #treestring = str(root)
+#    
+#            #ui.messageBox(treestring)
+#            xmldomtype = xml.dom.minidom.parseString(treestring)
+#            pretty_xml_as_string = xmldomtype.toprettyxml()
+#            #prettytree = etree();
+#            #prettytree = etree.fromstring(pretty_xml_as_string)
+#            #prettytree.write("c:/test/robot.urdf")
+#            
+#            
+#    
+#            with open(base_directory +"/robot.urdf", "w") as text_file:
+#                print(pretty_xml_as_string, file=text_file)
+#    
+            # Code to react to the event.
+            #_ui.messageBox('In MyExecuteHandler event handler.')
+        except:
+            logging.error('Failed:\n{}'.format(traceback.format_exc()))
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+        
+# Event handler that reacts when the command definitio is executed which
+# results in the command being created and this event being fired.
+class FixLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            logging.debug('FixLinkCommand create handler started.\n'+ str(inspect.stack()))
+            # Get the command that was created.
+            cmd = adsk.core.Command.cast(args.command)
+
+            # Connect to the command destroyed event.
+            onDestroy = FixLinkCommandDestroyHandler()
+            cmd.destroy.add(onDestroy)
+            _handlers.append(onDestroy)
+
+            # Connect to the input changed event.           
+            onInputChanged = FixLinkCommandInputChangedHandler()
+            cmd.inputChanged.add(onInputChanged)
+            _handlers.append(onInputChanged)    
+
+            onExecute = FixLinkCommandExecuteHandler()
+            cmd.execute.add(onExecute)
+            _handlers.append(onExecute)
+
+            # Get the CommandInputs collection associated with the command.
+            inputs = cmd.commandInputs           
+            
+
+            # Create a tab input.
+            tabCmdInput = inputs.addTabCommandInput('tab_1', 'Fix Link')   
+            tabChildInputs = tabCmdInput.children
+            
+            # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
+            message = '<div align="center">For more information on how to create an URDF, visit <a href="http:lmgtfy.com/?q=how+to+create+an+urdf">our website.</a></div>'
+            tabChildInputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)   
+           
+        except:
+            _ui.messageBox('Failed while creating FixLinkCommand:\n{}'.format(traceback.format_exc()))
+
 
 def createpaths(packagename):
     folderDlg = _ui.createFolderDialog()
@@ -1168,13 +1338,16 @@ def createpaths(packagename):
     outputdir = os.path.join(folderDlg.folder,packagename)
     thisscriptpath = os.path.dirname(os.path.realpath(__file__))
     base_directory = os.path.abspath(outputdir)
-    _ui.messageBox(base_directory)
+    logging.info('base_directory: '+base_directory)
+    #_ui.messageBox(base_directory)
     if not os.path.exists(base_directory):
         os.makedirs(base_directory)
     meshes_directory = os.path.join(base_directory, "meshes/")
-    _ui.messageBox( meshes_directory)
+    #_ui.messageBox( meshes_directory)
+    logging.info('meshes_directory: '+meshes_directory)
     components_directory =  os.path.join(base_directory, "components/")
-    _ui.messageBox(components_directory)
+    #_ui.messageBox(components_directory)
+    logging.info('components directory: ' + components_directory)
     if not os.path.exists(meshes_directory):
         os.makedirs(meshes_directory)    
     if not os.path.exists(components_directory):
@@ -1241,6 +1414,20 @@ def run(context):
         addlinkcmdDef.commandCreated.add(onCommandCreated)
         _handlers.append(onCommandCreated)
         
+#        #create new command definition for our additional command
+#        # Get the existing command definition or create it if it doesn't already exist.
+#        fixlinkcmdDef = _ui.commandDefinitions.itemById('cmdInputsFixLink')
+#        if not fixlinkcmdDef:
+#            fixlinkcmdDef = _ui.commandDefinitions.addButtonDefinition('cmdInputsFixLink', 'Fix Link', 'Fixes current link and parent joint.')
+#        else:
+#            pass
+#
+#        # Connect to the command created event.
+#        onCommandCreated = FixLinkCommandCreatedHandler()
+#        fixlinkcmdDef.commandCreated.add(onCommandCreated)
+#        _handlers.append(onCommandCreated)        
+        
+        
         _thistree = UrdfTree()
         if runfrommenu:
             
@@ -1278,7 +1465,7 @@ def run(context):
             packagename = 'mypackage'
             numoflinks = -1
             numofjoints = -1
-            if runfrommenu:
+            if not runfrommenu: # maybe not runfrommenu: ?
                 adsk.terminate()
         except:
             _ui.messageBox('Failed in shutdown sequence!:\n{}'.format(traceback.format_exc()))
