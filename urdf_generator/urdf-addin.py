@@ -1356,6 +1356,8 @@ class FixLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             ##TODO: add controls to set joint limits
             ##TODO: split commands to change visuals and collisions
             ##TODO: finish splitting genlink (generate meshes and xmls only when this command executes)
+            
+            ### harder more evolved TODO: change the custom fixlink command to a single one and have a global handles list to select appropriate subcommand for the right document (will do a lookup by name), add it to toolbar, so that the person can change a lot more about the current link (delete/add elements, etc)
             global linkInput
             linkInput = SixDegree(tab1ChildInputs,'link')
             # Create a tab input.
