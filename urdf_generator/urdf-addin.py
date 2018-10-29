@@ -29,7 +29,8 @@ _thistree = None
 
 #necessary globals
 fixmeinstances = []
-
+linkInput = None
+jointInput = None
 
 class UrdfTree:
     def __init__(self):
@@ -1212,36 +1213,12 @@ class FixLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
             cmdInput = eventArgs.input
             
             #linkInput = inputs.itemById('linkname')
-            distanceValue1Input = inputs.itemById('distanceValue')
-            distanceValue2Input = inputs.itemById('distanceValue2')
-            distanceValue3Input = inputs.itemById('distanceValue3')
             
-            angleValue1Input = inputs.itemById('angleValue')
-            angleValue2Input = inputs.itemById('angleValue2')
-            angleValue3Input = inputs.itemById('angleValue3')
-            
-            if cmdInput.id == 'distanceValue2':            
-                distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
-                #distanceValue3Input.manipulatorOrigin.y = distanceValue2Input.value
-                angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
-                angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
-                angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-                
-            if cmdInput.id == 'distanceValue3':            
-                #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-                angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
-                angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
-                angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))           
- 
-            if cmdInput.id == 'distanceValue':            
-                #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-                distanceValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-                distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
-                angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
-                angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
-                angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-                
-                
+            if linkInput:
+                linkInput.interact(cmdInput.id,inputs)
+            if jointInput:
+                jointInput.interact(cmdInput.id,inputs)  
+              
             tableInput = inputs.itemById('table')
             debugInput = inputs.itemById('debugbox')
             linkgroupInput = inputs.itemById('linkgroup')
@@ -1373,45 +1350,20 @@ class FixLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             message = '<div align="center">For more information on how to create an URDF, visit <a href="http:lmgtfy.com/?q=how+to+create+an+urdf">our website.</a></div>'
             tab1ChildInputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)   
             
-            # Create distance value input 1.
-            distanceValueInput = tab1ChildInputs.addDistanceValueCommandInput('distanceValue', 'X', adsk.core.ValueInput.createByReal(2))
-            distanceValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0))
-            distanceValueInput.hasMinimumValue = False
-            distanceValueInput.hasMaximumValue = False
-            
-            # Create distance value input 2.
-            distanceValueInput2 = tab1ChildInputs.addDistanceValueCommandInput('distanceValue2', 'Y', adsk.core.ValueInput.createByReal(1))
-            distanceValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-            distanceValueInput2.hasMinimumValue = False
-            distanceValueInput2.hasMaximumValue = False
-            
-            # Create distance value input 3.
-            distanceValueInput3 = tab1ChildInputs.addDistanceValueCommandInput('distanceValue3', 'Z', adsk.core.ValueInput.createByReal(3))
-            distanceValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1))
-            distanceValueInput3.hasMinimumValue = False
-            distanceValueInput3.hasMaximumValue = False     
-
-            # Create angle value input 1.
-            angleValueInput = tab1ChildInputs.addAngleValueCommandInput('angleValue', 'Roll', adsk.core.ValueInput.createByReal(2))
-            angleValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
-            angleValueInput.hasMinimumValue = False
-            angleValueInput.hasMaximumValue = False
-            
-            # Create angle value input 2.
-            angleValueInput2 = tab1ChildInputs.addAngleValueCommandInput('angleValue2', 'Pitch', adsk.core.ValueInput.createByReal(1))
-            angleValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
-            angleValueInput2.hasMinimumValue = False
-            angleValueInput2.hasMaximumValue = False
-            
-            # Create angle value input 3.
-            angleValueInput3 = tab1ChildInputs.addAngleValueCommandInput('angleValue3', 'Yaw', adsk.core.ValueInput.createByReal(3))
-            angleValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-            angleValueInput3.hasMinimumValue = False
-            angleValueInput3.hasMaximumValue = False                        
-            
+            ## TODO: need to think better about these globals. this is wrong, I should have them from the link and joint inputs used to create this fixcommand
+            ## TODO: add joint to genlink command?
+            ## TODO: need to add a control to set the axis for the joint (like I did for OrVec)
+            ##TODO: add controls to set joint limits
+            ##TODO: split commands to change visuals and collisions
+            ##TODO: finish splitting genlink (generate meshes and xmls only when this command executes)
+            global linkInput
+            linkInput = SixDegree(tab1ChildInputs,'link')
             # Create a tab input.
             tab2CmdInput = inputs.addTabCommandInput('tab_2', 'Fix Joint')   
             tab2ChildInputs = tab2CmdInput.children
+            
+            global jointInput          
+            jointInput = SixDegree(tab2ChildInputs,'joint') 
             
             # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
             message = '<div align="center">For more information on how to create an URDF, visit <a href="http:lmgtfy.com/?q=how+to+create+an+urdf">our website.</a></div>'
@@ -1420,6 +1372,76 @@ class FixLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         except:
             _ui.messageBox('Failed while creating FixLinkCommand:\n{}'.format(traceback.format_exc()))
 
+class SixDegree(OrVec):
+    #TODO: need to link it to actual joint and link orvec, probably will change the class orvec and instantiate the call form the link and joint objects to have them linked 
+    #TODO: need to initialize this with actual OrVec self values and change OrVec values in the interact portion. 
+    def __init__(self,ctrlInput,name):
+        super().__init__()
+        self.name = name
+        # Create distance value input 1.
+        distanceValueInput = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue', 'X', adsk.core.ValueInput.createByReal(2))
+        distanceValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0))
+        distanceValueInput.hasMinimumValue = False
+        distanceValueInput.hasMaximumValue = False
+        
+        # Create distance value input 2.
+        distanceValueInput2 = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue2', 'Y', adsk.core.ValueInput.createByReal(1))
+        distanceValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+        distanceValueInput2.hasMinimumValue = False
+        distanceValueInput2.hasMaximumValue = False
+        
+        # Create distance value input 3.
+        distanceValueInput3 = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue3', 'Z', adsk.core.ValueInput.createByReal(3))
+        distanceValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1))
+        distanceValueInput3.hasMinimumValue = False
+        distanceValueInput3.hasMaximumValue = False     
+
+        # Create angle value input 1.
+        angleValueInput = ctrlInput.addAngleValueCommandInput(self.name+'angleValue', 'Roll', adsk.core.ValueInput.createByReal(2))
+        angleValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+        angleValueInput.hasMinimumValue = False
+        angleValueInput.hasMaximumValue = False
+        
+        # Create angle value input 2.
+        angleValueInput2 = ctrlInput.addAngleValueCommandInput(self.name+'angleValue2', 'Pitch', adsk.core.ValueInput.createByReal(1))
+        angleValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+        angleValueInput2.hasMinimumValue = False
+        angleValueInput2.hasMaximumValue = False
+        
+        # Create angle value input 3.
+        angleValueInput3 = ctrlInput.addAngleValueCommandInput(self.name+'angleValue3', 'Yaw', adsk.core.ValueInput.createByReal(3))
+        angleValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+        angleValueInput3.hasMinimumValue = False
+        angleValueInput3.hasMaximumValue = False  
+    def interact(self, cmdInputid,inputs):
+        distanceValue1Input = inputs.itemById(self.name+'distanceValue')
+        distanceValue2Input = inputs.itemById(self.name+'distanceValue2')
+        distanceValue3Input = inputs.itemById(self.name+'distanceValue3')
+        
+        angleValue1Input = inputs.itemById(self.name+'angleValue')
+        angleValue2Input = inputs.itemById(self.name+'angleValue2')
+        angleValue3Input = inputs.itemById(self.name+'angleValue3')
+        
+        if cmdInputid == self.name+'distanceValue2':            
+            distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
+            #distanceValue3Input.manipulatorOrigin.y = distanceValue2Input.value
+            angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+            angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+            angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+        
+        if cmdInputid == self.name+'distanceValue3':            
+            #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+            angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+            angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))           
+        
+        if cmdInputid == self.name+'distanceValue':            
+            #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            distanceValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
+            angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+            angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+            angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
 
 def createpaths(packagename):
     folderDlg = _ui.createFolderDialog()
