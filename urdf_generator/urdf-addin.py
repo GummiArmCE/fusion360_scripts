@@ -292,6 +292,78 @@ class OrVec:
         self.x = x
         self.y = y
         self.z = z
+        
+class SixDegree(OrVec):
+    #TODO: need to link it to actual joint and link orvec, probably will change the class orvec and instantiate the call form the link and joint objects to have them linked 
+    #TODO: need to initialize this with actual OrVec self values and change OrVec values in the interact portion. 
+    def __init__(self,ctrlInput,name):
+        super().__init__()
+        self.name = name
+        # Create distance value input 1.
+        distanceValueInput = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue', 'X', adsk.core.ValueInput.createByReal(2))
+        distanceValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0))
+        distanceValueInput.hasMinimumValue = False
+        distanceValueInput.hasMaximumValue = False
+        
+        # Create distance value input 2.
+        distanceValueInput2 = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue2', 'Y', adsk.core.ValueInput.createByReal(1))
+        distanceValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+        distanceValueInput2.hasMinimumValue = False
+        distanceValueInput2.hasMaximumValue = False
+        
+        # Create distance value input 3.
+        distanceValueInput3 = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue3', 'Z', adsk.core.ValueInput.createByReal(3))
+        distanceValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1))
+        distanceValueInput3.hasMinimumValue = False
+        distanceValueInput3.hasMaximumValue = False     
+
+        # Create angle value input 1.
+        angleValueInput = ctrlInput.addAngleValueCommandInput(self.name+'angleValue', 'Roll', adsk.core.ValueInput.createByReal(2))
+        angleValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+        angleValueInput.hasMinimumValue = False
+        angleValueInput.hasMaximumValue = False
+        
+        # Create angle value input 2.
+        angleValueInput2 = ctrlInput.addAngleValueCommandInput(self.name+'angleValue2', 'Pitch', adsk.core.ValueInput.createByReal(1))
+        angleValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+        angleValueInput2.hasMinimumValue = False
+        angleValueInput2.hasMaximumValue = False
+        
+        # Create angle value input 3.
+        angleValueInput3 = ctrlInput.addAngleValueCommandInput(self.name+'angleValue3', 'Yaw', adsk.core.ValueInput.createByReal(3))
+        angleValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+        angleValueInput3.hasMinimumValue = False
+        angleValueInput3.hasMaximumValue = False  
+    def interact(self, cmdInputid,inputs):
+        distanceValue1Input = inputs.itemById(self.name+'distanceValue')
+        distanceValue2Input = inputs.itemById(self.name+'distanceValue2')
+        distanceValue3Input = inputs.itemById(self.name+'distanceValue3')
+        
+        angleValue1Input = inputs.itemById(self.name+'angleValue')
+        angleValue2Input = inputs.itemById(self.name+'angleValue2')
+        angleValue3Input = inputs.itemById(self.name+'angleValue3')
+        
+        if cmdInputid == self.name+'distanceValue2':            
+            distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
+            #distanceValue3Input.manipulatorOrigin.y = distanceValue2Input.value
+            angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+            angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+            angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+        
+        if cmdInputid == self.name+'distanceValue3':            
+            #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+            angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+            angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))           
+        
+        if cmdInputid == self.name+'distanceValue':            
+            #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            distanceValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
+            angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+            angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+            angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+
 
 class Visual:
     def __init__(self):
@@ -579,6 +651,20 @@ class Joint:
         #==============================================================================
         try:
             self.origin.setxyz(joint.geometryOrOriginOne.origin.x, joint.geometryOrOriginOne.origin.y, joint.geometryOrOriginOne.origin.z)
+            fixjointorigincmdDef = _ui.commandDefinitions.itemById('cmdInputsFixJointOrigin')
+            if not fixjointorigincmdDef:
+                fixjointorigincmdDef = _ui.commandDefinitions.addButtonDefinition('cmdInputsFixJointOrigin', 'Fixes joint.', 'Fixes Joint origin when Fusion fails to get the values')
+            else:
+                pass
+    
+            # Connect to the command created event. Not sure why I need it. I guess I will find out when it fails. 
+            
+            onCommandCreated = FixJointOriginCommandCreatedHandler()
+            fixjointorigincmdDef.commandCreated.add(onCommandCreated)
+            _handlers.append(onCommandCreated) # i didnt define it as a global, this should be useless or it will fail. 
+            
+            fixjointorigincmdDef.execute();
+            
         except:
             try:
                 self.origin.setxyz(joint.geometryOrOriginTwo.origin.x, joint.geometryOrOriginTwo.origin.y, joint.geometryOrOriginTwo.origin.z)
@@ -725,9 +811,34 @@ def addRowToTable(tableInput,LinkOrJoint):
     _rowNumber = _rowNumber + 1
     _elnum += 1
     
+# Event handler that reacts to any changes the user makes to any of the command inputs.
+class FixJointOriginCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            eventArgs = adsk.core.InputChangedEventArgs.cast(args)
+            inputs = eventArgs.inputs
+            cmdInput = eventArgs.input
+            
+            #linkInput = inputs.itemById('linkname')
+            
+            if linkInput:
+                linkInput.interact(cmdInput.id,inputs)
+            if jointInput:
+                jointInput.interact(cmdInput.id,inputs)  
+              
+            tableInput = inputs.itemById('table')
+            debugInput = inputs.itemById('debugbox')
+            linkgroupInput = inputs.itemById('linkgroup')
+            jointgroupInput = inputs.itemById('jointgroup')
+            
+        except:
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
 
 # Event handler that reacts to any changes the user makes to any of the command inputs.
-class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
+class GenURDFCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
@@ -964,7 +1075,7 @@ def getrow(commandstr,cmdid, tableInput, debugInput):
         return False
 
 # Event handler that reacts to when the command is destroyed. This terminates the script.            
-class AddLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
+class GenURDFCommandDestroyHandler(adsk.core.CommandEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
@@ -988,9 +1099,20 @@ class AddLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
                 adsk.terminate()
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            
+# Event handler that reacts to when the command is destroyed. This terminates the script(???).            
+class FixJointOriginCommandDestroyHandler(adsk.core.CommandEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            logging.info("Closing fixlink.")    
+            # don't know yet what else I need to do. 
+        except:
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
+class GenURDFCommandExecuteHandler(adsk.core.CommandEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
@@ -1050,10 +1172,84 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
         except:
             logging.error('Failed:\n{}'.format(traceback.format_exc()))
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            
+class FixJointOriginCommandExecuteHandler(adsk.core.CommandEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            logging.debug('started executing after link has been fixed! ')
+            
+            #Am I an instance or am I global?
+            
+            product = _app.activeProduct
+            logging.debug('this instance is in:' + product.parentDocument.name)
+            #this_design = adsk.fusion.Design.cast(product)
+            ##### this will be done by the AddLinkCommandExectuteHandler >>>>>>
+#            global _thistree
+#            #eventArgs = adsk.core.CommandEventArgs.cast(args)    
+#            #inputs = eventArgs.inputs
+#            #cmdInput = eventArgs.input
+#    
+#            base_directory, meshes_directory, components_directory = createpaths(packagename)
+#            
+#            urdfroot = etree.Element("robot", name = "gummi")
+#            
+#            base_link = Link('base_link',-1)
+#            base_link.makexml(urdfroot)
+#            #
+#            setaxisjoint = Joint('set_worldaxis',-1)
+#            setaxisjoint.isset = True
+#            setaxisjoint.type = "fixed"
+#            setaxisjoint.realorigin.rpy = str(3.14159265359/2)+' 0 0'
+#            setaxisjoint.parentlink = 'base_link'
+#            setaxisjoint.childlink = 'base'
+#            setaxisjoint.makexml(urdfroot)
+#            
+##            _thistree.currentlink.genlink(meshes_directory)
+##            #currentlink.name = linkInput.value
+##            _thistree.currentlink.makelinkxml(urdfroot)      
+#            allelstr, allels =  _thistree.allElements()
+#            logging.info('found '+ str(len(allels)) + allelstr)            
+#            #############################
+            #somewhere around here this should be executed in the fixlinkcommand instead!            
+            
+            
+            
+            
+#            for i in range(0,len(allels)):
+#                if 'isLink' in dir(allels[i]) and allels[i].isLink:
+#                    allels[i].genlink(meshes_directory, components_directory)
+#            #currentlink.name = linkInput.value
+#                allels[i].makexml(urdfroot)    
+#            
+#            tree = etree.ElementTree(urdfroot)
+#            root = tree.getroot()
+#            treestring = etree.tostring(root)
+#            #treestring = str(root)
+#    
+#            #ui.messageBox(treestring)
+#            xmldomtype = xml.dom.minidom.parseString(treestring)
+#            pretty_xml_as_string = xmldomtype.toprettyxml()
+#            #prettytree = etree();
+#            #prettytree = etree.fromstring(pretty_xml_as_string)
+#            #prettytree.write("c:/test/robot.urdf")
+#            
+#            
+#    
+#            with open(base_directory +"/robot.urdf", "w") as text_file:
+#                print(pretty_xml_as_string, file=text_file)
+#    
+            # Code to react to the event.
+            #_ui.messageBox('In MyExecuteHandler event handler.')
+        except:
+            logging.error('Failed:\n{}'.format(traceback.format_exc()))
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))            
+
         
 # Event handler that reacts when the command definitio is executed which
 # results in the command being created and this event being fired.
-class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
+class GenURDFCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
@@ -1062,16 +1258,16 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             cmd = adsk.core.Command.cast(args.command)
 
             # Connect to the command destroyed event.
-            onDestroy = AddLinkCommandDestroyHandler()
+            onDestroy = GenURDFCommandDestroyHandler()
             cmd.destroy.add(onDestroy)
             _handlers.append(onDestroy)
 
             # Connect to the input changed event.           
-            onInputChanged = AddLinkCommandInputChangedHandler()
+            onInputChanged = GenURDFCommandInputChangedHandler()
             cmd.inputChanged.add(onInputChanged)
             _handlers.append(onInputChanged)    
 
-            onExecute = AddLinkCommandExecuteHandler()
+            onExecute = GenURDFCommandExecuteHandler()
             cmd.execute.add(onExecute)
             _handlers.append(onExecute)
 
@@ -1156,6 +1352,64 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
+class FixJointOriginCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            logging.debug('FixLinkCommand create handler started.\n'+ str(inspect.stack()))
+            # Get the command that was created.
+            cmd = adsk.core.Command.cast(args.command)
+
+            # Connect to the command destroyed event.
+            onDestroy = FixJointOriginCommandDestroyHandler()
+            cmd.destroy.add(onDestroy)
+            _handlers.append(onDestroy)
+
+            # Connect to the input changed event.           
+            onInputChanged = FixJointOriginCommandInputChangedHandler()
+            cmd.inputChanged.add(onInputChanged)
+            _handlers.append(onInputChanged)    
+
+            onExecute = FixJointOriginCommandExecuteHandler()
+            cmd.execute.add(onExecute)
+            _handlers.append(onExecute)
+
+            # Get the CommandInputs collection associated with the command.
+            inputs = cmd.commandInputs           
+            
+
+            # Create a tab input.
+            tab1CmdInput = inputs.addTabCommandInput('tab_1', 'Fix Link')   
+            tab1ChildInputs = tab1CmdInput.children
+            
+            # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
+            message = '<div align="center">For more information on how to create an URDF, visit <a href="http:lmgtfy.com/?q=how+to+create+an+urdf">our website.</a></div>'
+            tab1ChildInputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)   
+            
+            ## TODO: need to think better about these globals. this is wrong, I should have them from the link and joint inputs used to create this fixcommand
+            ## TODO: add joint to genlink command?
+            ## TODO: need to add a control to set the axis for the joint (like I did for OrVec)
+            ##TODO: add controls to set joint limits
+            ##TODO: split commands to change visuals and collisions
+            ##TODO: finish splitting genlink (generate meshes and xmls only when this command executes)
+            
+            ### harder more evolved TODO: change the custom fixlink command to a single one and have a global handles list to select appropriate subcommand for the right document (will do a lookup by name), add it to toolbar, so that the person can change a lot more about the current link (delete/add elements, etc)
+            global linkInput
+            linkInput = SixDegree(tab1ChildInputs,'link')
+            # Create a tab input.
+            tab2CmdInput = inputs.addTabCommandInput('tab_2', 'Fix Joint')   
+            tab2ChildInputs = tab2CmdInput.children
+            
+            global jointInput          
+            jointInput = SixDegree(tab2ChildInputs,'joint') 
+            
+            # Create a message that spans the entire width of the dialog by leaving out the "name" argument.
+            message = '<div align="center">For more information on how to create an URDF, visit <a href="http:lmgtfy.com/?q=how+to+create+an+urdf">our website.</a></div>'
+            tab2ChildInputs.addTextBoxCommandInput('fullWidth_textBox', '', message, 1, True)   
+           
+        except:
+            _ui.messageBox('Failed while creating FixLinkCommand:\n{}'.format(traceback.format_exc()))
 
 def createpaths(packagename):
     folderDlg = _ui.createFolderDialog()
@@ -1228,17 +1482,18 @@ def run(context):
 #            tbPanel.deleteMe()
 #        tbPanel = tbPanels.add('NewPanel', 'New Panel', 'SolidScriptsAddinsPanel', False)
 
+        #first we need to add the fixjointorigin command, because genurdf will need it. 
 
         # Get the existing command definition or create it if it doesn't already exist.
-        addlinkcmdDef = _ui.commandDefinitions.itemById('cmdInputsAddLink')
-        if not addlinkcmdDef:
-            addlinkcmdDef = _ui.commandDefinitions.addButtonDefinition('cmdInputsAddLink', 'Make URDF', 'My attempt to make an URDF.')
+        genurdfcmdDef = _ui.commandDefinitions.itemById('cmdInputsGenUrdf')
+        if not genurdfcmdDef:
+            genurdfcmdDef = _ui.commandDefinitions.addButtonDefinition('cmdInputsGenUrdf', 'Make URDF', 'My attempt to make an URDF.')
         else:
             pass
 
         # Connect to the command created event.
-        onCommandCreated = AddLinkCommandCreatedHandler()
-        addlinkcmdDef.commandCreated.add(onCommandCreated)
+        onCommandCreated = GenURDFCommandCreatedHandler()
+        genurdfcmdDef.commandCreated.add(onCommandCreated)
         _handlers.append(onCommandCreated)
         
         _thistree = UrdfTree()
@@ -1246,16 +1501,16 @@ def run(context):
             
             # will try to create a button for this guy
             # but first morruca
-            while tbPanel.controls.itemById('cmdInputsAddLink'):
-                a = tbPanel.controls.itemById('cmdInputsAddLink')
+            while tbPanel.controls.itemById('cmdInputsGenUrdf'):
+                a = tbPanel.controls.itemById('cmdInputsGenUrdf')
                 a.deleteMe
             
-            tbPanel.controls.addCommand(addlinkcmdDef)          
+            tbPanel.controls.addCommand(genurdfcmdDef)          
             
             
         else:
             # Execute the command definition.
-            addlinkcmdDef.execute()
+            genurdfcmdDef.execute()
         
         # Prevent this module from being terminated when the script returns, because we are waiting for event handlers to fire.
         #adsk.autoTerminate(False)
