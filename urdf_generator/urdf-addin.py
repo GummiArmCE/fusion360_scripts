@@ -22,9 +22,14 @@ packagename = 'mypackage'
 numoflinks = -1
 numofjoints = -1
 
+#damn globals! 
+jtctrl = None
+lastjoint = None
+
 # Global set of event handlers to keep them referenced for the duration of the command
 _handlers = []
 _thistree = None
+PI = 3.14159265359
 
 class UrdfTree:
     def __init__(self):
@@ -36,8 +41,8 @@ class UrdfTree:
         thislink = Link(linkname,linknum) 
         self.elementsdict.update({linknum:thislink})
         
-    def addJoint(self, jointname,jointnum):
-        thisjoint = Joint(jointname,jointnum) 
+    def addJoint(self, jointname,jointnum,jtctrl):
+        thisjoint = Joint(jointname,jointnum,jtctrl) 
         self.elementsdict.update({jointnum:thisjoint})
         
     def rmElement(self,linknumstr):
@@ -279,11 +284,17 @@ class Inertia:
 
 class OrVec:
     def __init__(self):
-        self.xyz = '0 0 0'
-        self.rpy = '0 0 0'
-        self.x = 0
-        self.y = 0
-        self.z = 0
+        #self.xyz = '0 0 0'
+        #self.rpy = '0 0 0'
+        #self.x = 0
+        #self.z = 0
+        #self.y = 0
+        #self.r = 0
+        #self.p = 0
+        #self.yaw = 0
+        self.setxyz(0,0,0)
+        self.setrpy(0,0,0)        
+        
         self.isset = False
     def setxyz(self,x,y,z):
         self.isset = True
@@ -292,6 +303,104 @@ class OrVec:
         self.x = x
         self.y = y
         self.z = z
+    def setrpy(self,r,p,y):
+        self.rpy = str(r/180*PI)+' ' + str(p/180*PI)+' ' + str(y/180*PI) 
+        #TODO: this maybe not the right conversion constant!!!!!!!!!!        
+        self.r = r
+        self.p = p
+        self.yaw = y
+        
+class SixDegree(OrVec):
+    #TODO: need to link it to actual joint and link orvec, probably will change the class orvec and instantiate the call form the link and joint objects to have them linked 
+    #TODO: need to initialize this with actual OrVec self values and change OrVec values in the interact portion. 
+    def __init__(self,ctrlInput,name):
+        super().__init__()
+        self.name = 'j'#name
+        epsilon = 0.01
+        allvisible = True
+        allenabled = True
+        # Create distance value input 1.
+        distanceValueInput = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue', 'X', adsk.core.ValueInput.createByReal(-1))#self.x+epsilon))
+        distanceValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0))
+        return
+        distanceValueInput.hasMinimumValue = False
+        distanceValueInput.hasMaximumValue = False
+        distanceValueInput.isVisible = allvisible
+        distanceValueInput.isEnabled = allenabled
+        
+        # Create distance value input 2.
+        distanceValueInput2 = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue2', 'Y', adsk.core.ValueInput.createByReal(-1))#self.y+epsilon))
+        distanceValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+        distanceValueInput2.hasMinimumValue = False
+        distanceValueInput2.hasMaximumValue = False
+        distanceValueInput2.isVisible = allvisible
+        distanceValueInput2.isEnabled = allenabled
+        
+        # Create distance value input 3.
+        distanceValueInput3 = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue3', 'Z', adsk.core.ValueInput.createByReal(-1))#self.z+epsilon))
+        distanceValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1))
+        distanceValueInput3.hasMinimumValue = False
+        distanceValueInput3.hasMaximumValue = False     
+        distanceValueInput3.isVisible = allvisible
+        distanceValueInput3.isEnabled = allenabled
+        
+        # Create angle value input 1.
+        angleValueInput = ctrlInput.addAngleValueCommandInput(self.name+'angleValue', 'Roll', adsk.core.ValueInput.createByReal(-1))#self.r+epsilon))
+        angleValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+        angleValueInput.hasMinimumValue = False
+        angleValueInput.hasMaximumValue = False
+        angleValueInput.isVisible = allvisible
+        angleValueInput.isEnabled = allenabled        
+        
+        # Create angle value input 2.
+        angleValueInput2 = ctrlInput.addAngleValueCommandInput(self.name+'angleValue2', 'Pitch', adsk.core.ValueInput.createByReal(-1))#self.p+epsilon))
+        angleValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+        angleValueInput2.hasMinimumValue = False
+        angleValueInput2.hasMaximumValue = False
+        angleValueInput2.isVisible = allvisible
+        angleValueInput2.isEnabled = allenabled
+        
+        # Create angle value input 3.
+        angleValueInput3 = ctrlInput.addAngleValueCommandInput(self.name+'angleValue3', 'Yaw', adsk.core.ValueInput.createByReal(-1))#self.yaw+epsilon))
+        angleValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+        angleValueInput3.hasMinimumValue = False
+        angleValueInput3.hasMaximumValue = False  
+        angleValueInput3.isVisibile = allvisible
+        angleValueInput3.isEnabled = allenabled
+
+        
+    def interact(self, cmdInputid,inputs):
+        distanceValue1Input = inputs.itemById(self.name+'distanceValue')
+        distanceValue2Input = inputs.itemById(self.name+'distanceValue2')
+        distanceValue3Input = inputs.itemById(self.name+'distanceValue3')
+        
+        angleValue1Input = inputs.itemById(self.name+'angleValue')
+        angleValue2Input = inputs.itemById(self.name+'angleValue2')
+        angleValue3Input = inputs.itemById(self.name+'angleValue3')
+        
+        if cmdInputid == self.name+'distanceValue2':            
+            distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
+            #distanceValue3Input.manipulatorOrigin.y = distanceValue2Input.value
+            
+        if cmdInputid == self.name+'distanceValue3':            
+            #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            pass
+        if cmdInputid == self.name+'distanceValue':            
+            #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            distanceValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
+
+        self.x = distanceValue1Input.value 
+        self.y = distanceValue2Input.value
+        self.z = distanceValue3Input.value 
+        self.r = angleValue1Input.value
+        self.p = angleValue2Input.value 
+        self.yaw = angleValue3Input.value
+        
+        angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+        angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+        angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+        
 
 class Visual:
     def __init__(self):
@@ -542,11 +651,11 @@ class Link:
         
 class Joint:
     # jointdefs = Joint(actualjoint, actualjointname,parentl,childl, currentLevel,parent);
-    def __init__(self,jointname,row):
+    def __init__(self,jointname,row,ctrlInputs):
         level= 0
         self.name = jointname
         self.generatingjointname = ''
-        self.origin = OrVec()
+        self.origin = SixDegree(ctrlInputs,self.name) 
         self.realorigin = OrVec()
         self.parentlink = ''
         self.childlink = ''
@@ -558,10 +667,11 @@ class Joint:
         self.isJoint = True
         self.isset = False
         self.entity = None ## this will have the whole joint that created this joint instance. sort of dumb, but it is the way I can repopulate the selections... 
-    def setjoint(self,joint):#,parentl,childl):
+    def setjoint(self,joint,cmdInputid,inputs):#,parentl,childl):
         self.isset = True
         self.generatingjointname = joint.name
         self.entity = joint ### i need this to repopulate selection, but I know it might break the code even more...
+        self.origin.interact(cmdInputid,inputs) # this can maybe happen only if setxyz fails(?) 
         #self.parentlink = parentl
         #self.childlink = childl
         
@@ -834,7 +944,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     logging.debug('adding joint. row number'+str(_rowNumber))
                     jointname = tableInput.getInputAtPosition(_rowNumber-1,2).value
                     logging.debug('adding joint:' + str(jointname))
-                    _thistree.addJoint(jointname,_elnum-1)
+                    _thistree.addJoint(jointname,_elnum-1,jtctrl)
                     #setcurrel(tableInput.getInputAtPosition(tableInput.selectedRow,0).value,debugInput, oldrow, linkselInput, jointselInput)
                     
                 if cmdInput.id == 'tableLinkAdd':
@@ -905,7 +1015,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
 
             if cmdInput.id == 'jointselection' and jointselInput.selectionCount == 1:
                logging.debug('adding joint entity:'+ jointselInput.selection(0).entity.name)
-               _thistree.currentel.setjoint( jointselInput.selection(0).entity)
+               _thistree.currentel.setjoint( jointselInput.selection(0).entity,cmdInput.id,inputs)
             
             if cmdInput.id == 'createtree':
                 #linkselInput.hasFocus = True #### if this is not set, then you cannot click OK idk why...
@@ -1011,7 +1121,7 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
             setaxisjoint = Joint('set_worldaxis',-1)
             setaxisjoint.isset = True
             setaxisjoint.type = "fixed"
-            setaxisjoint.realorigin.rpy = str(3.14159265359/2)+' 0 0'
+            setaxisjoint.realorigin.rpy = str(PI/2)+' 0 0'
             setaxisjoint.parentlink = 'base_link'
             setaxisjoint.childlink = 'base'
             setaxisjoint.makexml(urdfroot)
@@ -1140,7 +1250,8 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             # add group for link stuff            
             myjointgroup = tab3ChildInputs.addGroupCommandInput('jointgroup', 'Joint stuff' )
             myjointgroup.isVisible = False
-            
+            global jtctrl
+            jtctrl = myjointgroup.children
             
             # Create a selection input.
             selectionInput2 =myjointgroup.children.addSelectionInput('jointselection', 'Select Joint', 'Basic select command input')
