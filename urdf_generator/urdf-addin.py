@@ -41,8 +41,8 @@ class UrdfTree:
         thislink = Link(linkname,linknum) 
         self.elementsdict.update({linknum:thislink})
         
-    def addJoint(self, jointname,jointnum,jtctrl):
-        thisjoint = Joint(jointname,jointnum,jtctrl) 
+    def addJoint(self, jointname,jointnum):
+        thisjoint = Joint(jointname,jointnum) 
         self.elementsdict.update({jointnum:thisjoint})
         
     def rmElement(self,linknumstr):
@@ -628,7 +628,7 @@ class Link:
         
 class Joint:
     # jointdefs = Joint(actualjoint, actualjointname,parentl,childl, currentLevel,parent);
-    def __init__(self,jointname,row,ctrlInputs):
+    def __init__(self,jointname,row):
         level= 0
         self.name = jointname
         self.generatingjointname = ''
@@ -928,7 +928,8 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     logging.debug('adding joint. row number'+str(_rowNumber))
                     jointname = tableInput.getInputAtPosition(_rowNumber-1,2).value
                     logging.debug('adding joint:' + str(jointname))
-                    _thistree.addJoint(jointname,_elnum-1,inputs)
+                    _thistree.addJoint(jointname,_elnum-1)
+                    #_thistree.addJoint(jointname,_elnum-1,inputs)
                     #setcurrel(tableInput.getInputAtPosition(tableInput.selectedRow,0).value,debugInput, oldrow, linkselInput, jointselInput)
                     
                 if cmdInput.id == 'tableLinkAdd':
