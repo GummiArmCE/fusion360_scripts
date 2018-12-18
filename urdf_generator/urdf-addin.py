@@ -957,12 +957,13 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     
                     linkgroupInput.isVisible = True
                     jointgroupInput.isVisible = False
-                    chcontrols(inputs,True,False)
+                    chcontrols(jointgroupInput.children,True,False)
                 if tableInput.selectedRow!= -1 and not tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled and  tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint':
                     
                     linkgroupInput.isVisible = False
                     jointgroupInput.isVisible = True
-                    chcontrols(inputs,True,True)
+                    
+                    chcontrols(jointgroupInput.children,True,True)
                     pln = jointgroupInput.children.itemById('parentlinkname')
                     cln = jointgroupInput.children.itemById('childlinkname')
                     alllinkstr, _ = _thistree.allLinks()
