@@ -53,24 +53,22 @@ A sample of a created urdf using this add-in is available in the mypackage folde
 
 ### Caveats:
 
-You may need to change documents dimensions to cm to run it properly. I haven't checked it yet, just making sure, if you are using this code right now, that you can get something you can still view in rviz.
-
+You may need to change documents dimensions to cm to run it properly. I believe this was fixed, but until I have confirmation the warning will stay here.
 
 
 ### TODO list:
 
 - add masses and moments of inertia to model (currently i only read them and write them down to debug)
-- generate also srdf
+- add prismatic joints
+- add control to change joint types
+- add control to change link origins (solidworks plugin allows this, but is it even necessary?)
 
 ### Planned features list
 
-- add more controls to interface allow for checking the generated urdf
-- add button to load generate urdf with fusion and the ability to run it from a single click
-- try to go over all joints and make them visible and clickable
+- generate also srdf
+- add button to launch command from toolbar
+- update joint visibility when command starts
 
 - add a control to change the colour of the link and maybe add a texture (rviz supports this, so no reason why I shouldn't either)
-- add mimic joints (it is rather useful for making pretty urdfs, although, this is probably a bit too much to ask of my code, since its interface is not great and currently I don't know how to save progress half-way through, putting too many things that can go wrong is perhaps not the best idea)
-- add the ability to save progress halfway: currently I don't know how to do this. Pickle does not save swig objects, and I do have the .groups property in links (and maybe something in joints as well), so I can't really save it completely. Perhaps I should clear this property and have a method to set it by name. For links this is doable, but for joints it is a bit trickier. 
-
-
-- ???
+- add mimic joints 
+- add the ability to save progress halfway: currently I don't know how to do this. Pickle does not save swig objects, and I do have the .groups property in links (and maybe something in joints as well), so I can't really save it completely. Perhaps I should clear this property and have a method to set it by name. 
