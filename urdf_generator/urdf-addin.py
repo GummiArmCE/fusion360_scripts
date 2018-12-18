@@ -310,97 +310,36 @@ class OrVec:
         self.p = p
         self.yaw = y
         
+                
+        
 class SixDegree(OrVec):
     #TODO: need to link it to actual joint and link orvec, probably will change the class orvec and instantiate the call form the link and joint objects to have them linked 
     #TODO: need to initialize this with actual OrVec self values and change OrVec values in the interact portion. 
-    def __init__(self,ctrlInput,name):
+    def __init__(self,inputs):
         super().__init__()
-        self.name = 'j'#name
-        epsilon = 0.01
-        allvisible = True
-        allenabled = True
-        # Create distance value input 1.
-        distanceValueInput = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue', 'X', adsk.core.ValueInput.createByReal(-1))#self.x+epsilon))
-        distanceValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0))
-        return
-        distanceValueInput.hasMinimumValue = False
-        distanceValueInput.hasMaximumValue = False
-        distanceValueInput.isVisible = allvisible
-        distanceValueInput.isEnabled = allenabled
+        self.distanceValue1Input = inputs.itemById('distanceValue')
+        self.distanceValue2Input = inputs.itemById('distanceValue2')
+        self.distanceValue3Input = inputs.itemById('distanceValue3')
         
-        # Create distance value input 2.
-        distanceValueInput2 = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue2', 'Y', adsk.core.ValueInput.createByReal(-1))#self.y+epsilon))
-        distanceValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-        distanceValueInput2.hasMinimumValue = False
-        distanceValueInput2.hasMaximumValue = False
-        distanceValueInput2.isVisible = allvisible
-        distanceValueInput2.isEnabled = allenabled
+        self.angleValue1Input = inputs.itemById('angleValue')
+        self.angleValue2Input = inputs.itemById('angleValue2')
+        self.angleValue3Input = inputs.itemById('angleValue3')                
+                
+    def setxyzrpy(self):
+        self.distanceValue1Input.value = self.x
+        self.distanceValue2Input.value = self.y
+        self.distanceValue3Input.value = self.z
+        self.angleValue1Input.value = self.r
+        self.angleValue2Input.value = self.p
+        self.angleValue3Input.value = self.yaw
         
-        # Create distance value input 3.
-        distanceValueInput3 = ctrlInput.addDistanceValueCommandInput(self.name+'distanceValue3', 'Z', adsk.core.ValueInput.createByReal(-1))#self.z+epsilon))
-        distanceValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1))
-        distanceValueInput3.hasMinimumValue = False
-        distanceValueInput3.hasMaximumValue = False     
-        distanceValueInput3.isVisible = allvisible
-        distanceValueInput3.isEnabled = allenabled
-        
-        # Create angle value input 1.
-        angleValueInput = ctrlInput.addAngleValueCommandInput(self.name+'angleValue', 'Roll', adsk.core.ValueInput.createByReal(-1))#self.r+epsilon))
-        angleValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
-        angleValueInput.hasMinimumValue = False
-        angleValueInput.hasMaximumValue = False
-        angleValueInput.isVisible = allvisible
-        angleValueInput.isEnabled = allenabled        
-        
-        # Create angle value input 2.
-        angleValueInput2 = ctrlInput.addAngleValueCommandInput(self.name+'angleValue2', 'Pitch', adsk.core.ValueInput.createByReal(-1))#self.p+epsilon))
-        angleValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
-        angleValueInput2.hasMinimumValue = False
-        angleValueInput2.hasMaximumValue = False
-        angleValueInput2.isVisible = allvisible
-        angleValueInput2.isEnabled = allenabled
-        
-        # Create angle value input 3.
-        angleValueInput3 = ctrlInput.addAngleValueCommandInput(self.name+'angleValue3', 'Yaw', adsk.core.ValueInput.createByReal(-1))#self.yaw+epsilon))
-        angleValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-        angleValueInput3.hasMinimumValue = False
-        angleValueInput3.hasMaximumValue = False  
-        angleValueInput3.isVisibile = allvisible
-        angleValueInput3.isEnabled = allenabled
-
-        
-    def interact(self, cmdInputid,inputs):
-        distanceValue1Input = inputs.itemById(self.name+'distanceValue')
-        distanceValue2Input = inputs.itemById(self.name+'distanceValue2')
-        distanceValue3Input = inputs.itemById(self.name+'distanceValue3')
-        
-        angleValue1Input = inputs.itemById(self.name+'angleValue')
-        angleValue2Input = inputs.itemById(self.name+'angleValue2')
-        angleValue3Input = inputs.itemById(self.name+'angleValue3')
-        
-        if cmdInputid == self.name+'distanceValue2':            
-            distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
-            #distanceValue3Input.manipulatorOrigin.y = distanceValue2Input.value
-            
-        if cmdInputid == self.name+'distanceValue3':            
-            #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-            pass
-        if cmdInputid == self.name+'distanceValue':            
-            #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-            distanceValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-            distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
-
-        self.x = distanceValue1Input.value 
-        self.y = distanceValue2Input.value
-        self.z = distanceValue3Input.value 
-        self.r = angleValue1Input.value
-        self.p = angleValue2Input.value 
-        self.yaw = angleValue3Input.value
-        
-        angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
-        angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
-        angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-        
+    def interact(self):        
+        self.x = self.distanceValue1Input.value 
+        self.y = self.distanceValue2Input.value
+        self.z = self.distanceValue3Input.value 
+        self.r = self.angleValue1Input.value
+        self.p = self.angleValue2Input.value 
+        self.yaw = self.angleValue3Input.value       
 
 class Visual:
     def __init__(self):
@@ -655,7 +594,9 @@ class Joint:
         level= 0
         self.name = jointname
         self.generatingjointname = ''
-        self.origin = SixDegree(ctrlInputs,self.name) 
+        self.origin = SixDegree(ctrlInputs) 
+        #self.origin = OrVec()
+
         self.realorigin = OrVec()
         self.parentlink = ''
         self.childlink = ''
@@ -671,7 +612,10 @@ class Joint:
         self.isset = True
         self.generatingjointname = joint.name
         self.entity = joint ### i need this to repopulate selection, but I know it might break the code even more...
-        self.origin.interact(cmdInputid,inputs) # this can maybe happen only if setxyz fails(?) 
+        
+        ### TODO: REVIEW THIS!
+        #self.origin.interact(cmdInputid,inputs) # this can maybe happen only if setxyz fails(?) 
+
         #self.parentlink = parentl
         #self.childlink = childl
         
@@ -689,9 +633,11 @@ class Joint:
         #==============================================================================
         try:
             self.origin.setxyz(joint.geometryOrOriginOne.origin.x, joint.geometryOrOriginOne.origin.y, joint.geometryOrOriginOne.origin.z)
+            self.origin.setxyzrpy()
         except:
             try:
                 self.origin.setxyz(joint.geometryOrOriginTwo.origin.x, joint.geometryOrOriginTwo.origin.y, joint.geometryOrOriginTwo.origin.z)
+                self.origin.setxyzrpy()
             except:                        
                 _ui.messageBox('Could not set joint origin. This will affect the whole assembly and it will be hard to fix!!! This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
                 logging.error('Could not set joint origin. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
@@ -944,7 +890,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     logging.debug('adding joint. row number'+str(_rowNumber))
                     jointname = tableInput.getInputAtPosition(_rowNumber-1,2).value
                     logging.debug('adding joint:' + str(jointname))
-                    _thistree.addJoint(jointname,_elnum-1,jtctrl)
+                    _thistree.addJoint(jointname,_elnum-1,inputs)
                     #setcurrel(tableInput.getInputAtPosition(tableInput.selectedRow,0).value,debugInput, oldrow, linkselInput, jointselInput)
                     
                 if cmdInput.id == 'tableLinkAdd':
@@ -1024,6 +970,43 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 _thistree.gentree()
                 if linkselInput.selectionCount == 0 and jointselInput.selectionCount == 0:
                     _ui.messageBox("one last thing: if you leave both joint and link selections without any thing select, fusion will believe it does not need to execute the command - so the OK will be grayed out. Moreover, if it either of them have focus, but don't have anything selected, it will show the OK button, but it will not execute anything. i currently don't know how to fix this without either saving the selection and repopulating them each time the user clicks on the select button- maybe a nice feature, but something that will take me some time to do, or adding subcommands to do those selections - something I am not sure if it is possible (it should be), but also will take me some time to get around doing. \n easiest way to fix this is go to a joint and reselect it, then run OK")
+                
+###### joint control
+            distanceValue1Input = inputs.itemById('distanceValueX')
+            distanceValue2Input = inputs.itemById('distanceValueY')
+            distanceValue3Input = inputs.itemById('distanceValueZ')
+            
+            angleValue1Input = inputs.itemById('angleValueRoll')
+            angleValue2Input = inputs.itemById('angleValuePitch')
+            angleValue3Input = inputs.itemById('angleValueYaw')
+            
+            if cmdInput.id == 'distanceValueY':            
+                distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
+                #distanceValue3Input.manipulatorOrigin.y = distanceValue2Input.value
+                
+            if cmdInput.id == 'distanceValueZ':            
+                #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+                pass
+            if cmdInput.id == 'distanceValueX':            
+                #distanceValue2Input.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+                distanceValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+                distanceValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, 0), adsk.core.Vector3D.create(0, 0, 1))
+    
+            if cmdInput.id in ['distanceValueX','distanceValueY','distanceValueZ']:
+                angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+                angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+                angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+                            
+            if cmdInput.id in ['distanceValueX','distanceValueY','distanceValueZ','angleValueRoll','angleValuePitch','angleValueYaw']:
+            ### need to get currentjoint and set the origin!
+#            self.x = distanceValue1Input.value 
+#            self.y = distanceValue2Input.value
+#            self.z = distanceValue3Input.value 
+#            self.r = angleValue1Input.value
+#            self.p = angleValue2Input.value 
+#            self.yaw = angleValue3Input.value
+                pass
+                
                 
             if tableInput is not None:    
                 _oldrow = tableInput.selectedRow
@@ -1250,8 +1233,60 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             # add group for link stuff            
             myjointgroup = tab3ChildInputs.addGroupCommandInput('jointgroup', 'Joint stuff' )
             myjointgroup.isVisible = False
-            global jtctrl
+            
+            #global jtctrl
             jtctrl = myjointgroup.children
+            allvisible = True
+            allenabled = True
+            
+            distanceValueInput = jtctrl.addDistanceValueCommandInput('distanceValueX', 'X', adsk.core.ValueInput.createByReal(-1))#self.x+epsilon))
+            distanceValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0))
+            #return
+            distanceValueInput.hasMinimumValue = False
+            distanceValueInput.hasMaximumValue = False
+            distanceValueInput.isVisible = allvisible
+            distanceValueInput.isEnabled = allenabled
+            
+            # Create distance value input 2.
+            distanceValueInput2 = jtctrl.addDistanceValueCommandInput('distanceValueY', 'Y', adsk.core.ValueInput.createByReal(-1))#self.y+epsilon))
+            distanceValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            distanceValueInput2.hasMinimumValue = False
+            distanceValueInput2.hasMaximumValue = False
+            distanceValueInput2.isVisible = allvisible
+            distanceValueInput2.isEnabled = allenabled
+            
+            # Create distance value input 3.
+            distanceValueInput3 = jtctrl.addDistanceValueCommandInput('distanceValueZ', 'Z', adsk.core.ValueInput.createByReal(-1))#self.z+epsilon))
+            distanceValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1))
+            distanceValueInput3.hasMinimumValue = False
+            distanceValueInput3.hasMaximumValue = False     
+            distanceValueInput3.isVisible = allvisible
+            distanceValueInput3.isEnabled = allenabled
+            
+            # Create angle value input 1.
+            angleValueInput = jtctrl.addAngleValueCommandInput('angleValueRoll', 'Roll', adsk.core.ValueInput.createByReal(-1))#self.r+epsilon))
+            angleValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
+            angleValueInput.hasMinimumValue = False
+            angleValueInput.hasMaximumValue = False
+            angleValueInput.isVisible = allvisible
+            angleValueInput.isEnabled = allenabled        
+            
+            # Create angle value input 2.
+            angleValueInput2 = jtctrl.addAngleValueCommandInput('angleValuePitch', 'Pitch', adsk.core.ValueInput.createByReal(-1))#self.p+epsilon))
+            angleValueInput2.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
+            angleValueInput2.hasMinimumValue = False
+            angleValueInput2.hasMaximumValue = False
+            angleValueInput2.isVisible = allvisible
+            angleValueInput2.isEnabled = allenabled
+            
+            # Create angle value input 3.
+            angleValueInput3 = jtctrl.addAngleValueCommandInput('angleValueYaw', 'Yaw', adsk.core.ValueInput.createByReal(-1))#self.yaw+epsilon))
+            angleValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
+            angleValueInput3.hasMinimumValue = False
+            angleValueInput3.hasMaximumValue = False  
+            angleValueInput3.isVisibile = allvisible
+            angleValueInput3.isEnabled = allenabled
+            
             
             # Create a selection input.
             selectionInput2 =myjointgroup.children.addSelectionInput('jointselection', 'Select Joint', 'Basic select command input')
@@ -1263,6 +1298,8 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             parentlinkin = myjointgroup.children.addDropDownCommandInput('parentlinkname', 'Name of parent link', 1)
                         
             childlinkin = myjointgroup.children.addDropDownCommandInput('childlinkname', 'Name of child link', 1)
+            
+            
             
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
