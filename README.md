@@ -58,6 +58,8 @@ You may need to change documents dimensions to cm to run it properly. I believe 
 
 ### TODO list:
 
+- addin functionality is not being used properly. It currently cannot be loaded at startup and is working like a script (needs to be fixed before we make a release version)
+- add button to launch command from toolbar
 - add masses and moments of inertia to model (currently i only read them and write them down to debug)
 - add prismatic joints
 - add control to change joint types
@@ -66,9 +68,7 @@ You may need to change documents dimensions to cm to run it properly. I believe 
 ### Planned features list
 
 - generate also srdf
-- add button to launch command from toolbar
 - update joint visibility when command starts
-
 - add a control to change the colour of the link and maybe add a texture (rviz supports this, so no reason why I shouldn't either)
 - add mimic joints 
 - add the ability to save progress halfway: currently I don't know how to do this. Pickle does not save swig objects, and I do have the .groups property in links (and maybe something in joints as well), so I can't really save it completely. Perhaps I should clear this property and have a method to set it by name. 
