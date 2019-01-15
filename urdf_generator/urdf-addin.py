@@ -351,6 +351,9 @@ class SixDegree(OrVec):
         self.r = angleValue1Input.value
         self.p = angleValue2Input.value 
         self.yaw = angleValue3Input.value       
+        
+    def jointset(self):
+        self.isset = True
 
 def chcontrols(inputs,allvisible,allenabled):
         
@@ -1046,7 +1049,10 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 assert _thistree.currentel.isJoint
                 _thistree.currentel.origin.interact(inputs) 
                 #pass
-                
+            
+            if cmdInput.id == 'setjoint':
+                assert _thistree.currentel.isJoint
+                _thistree.currentel.origin.jointset()
                 
             if tableInput is not None:    
                 _oldrow = tableInput.selectedRow
@@ -1278,6 +1284,8 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             jtctrl = myjointgroup.children
             allvisible = True
             allenabled = False
+            
+            jtctrl.addBoolValueInput('setjoint','Set Joint',  False,'', True)
             
             distanceValueInput = jtctrl.addDistanceValueCommandInput('distanceValueX', 'X', adsk.core.ValueInput.createByReal(0))#self.x+epsilon))
             distanceValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0))
