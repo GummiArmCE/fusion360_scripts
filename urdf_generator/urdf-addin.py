@@ -12,25 +12,32 @@ import os , sys
 _app = None
 _ui  = None
 _design = None
-_rowNumber = 0
-_elnum = 0
-_oldrow = -1
 
-runfrommenu = 0
-
-packagename = 'mypackage'
-numoflinks = -1
-numofjoints = -1
-
-#damn globals! 
-jtctrl = None
-lastjoint = None
+runfrommenu = True
 
 # Global set of event handlers to keep them referenced for the duration of the command
 _handlers = []
-_thistree = None
+_ms = []
+
 PI = 3.14159265359
 
+class MotherShip:
+    def __init__(self):
+#         """ This is just to clear bad globals that I shouldn't keep between 
+#         different runs. It is NOT a solution, mostly laziness, 
+ #        but since the structure of some objects is not entirely clear just yet,
+ #        I don't dare doing more than this. """
+        self.rowNumber = 0
+        self.elnum = 0
+        self.oldrow = -1        
+        #damn globals! 
+        self.jtctrl = None
+        self.lastjoint = None
+        self.packagename = 'mypackage'
+        self.numoflinks = -1
+        self.numofjoints = -1
+        self.thistree = UrdfTree()
+        
 class UrdfTree:
     def __init__(self):
         self.elementsdict = {}
@@ -49,8 +56,8 @@ class UrdfTree:
         linknum = int(linknumstr)
         logging.debug('deleted element' + str(linknum)+ 'named: '+ self.elementsdict[linknum].name)
         self.elementsdict.pop(linknum)
-        global _rowNumber        
-        _rowNumber -=1
+        global _ms      
+        _ms.rowNumber -=1
         #logging.warn('this is not properly implemented. results are unpredictable after this operation!')
         
     def _gentreefindbase(self, thiselementsdict, report):
@@ -430,7 +437,7 @@ class Link:
             self.coordinatesystem = joint.origin
         
     def makexml(self, urdfroot):
-        self.visual.geometryfilename = "package://"+packagename+"/meshes/" + clearupst(self.name) +".stl"
+        self.visual.geometryfilename = "package://"+_ms.packagename+"/meshes/" + clearupst(self.name) +".stl"
 
         link = etree.SubElement(urdfroot, "link", name= clearupst(self.name))
 
@@ -621,7 +628,7 @@ class Link:
             logging.info('saving STL file: '+ meshes_directory+'/' + stlname )
             exportMgr.execute(stlRootOptions)            
             
-            self.visual.geometryfilename = "package://"+packagename+"/meshes/" + stlname +".stl"
+            self.visual.geometryfilename = "package://"+_ms.packagename+"/meshes/" + stlname +".stl"
             self.collision.geometryfilename = self.visual.geometryfilename # the legend has it that this file should be a slimmer version of the visuals, so that collisions can be calculated more easily....       
     
         except:
@@ -770,34 +777,34 @@ def spaces(spaceCount):
 
 # Adds a new row to the table.
 def addRowToTable(tableInput,LinkOrJoint):
-    global numoflinks, numofjoints, _elnum
+    global _ms
     # Get the CommandInputs object associated with the parent command.
     cmdInputs = adsk.core.CommandInputs.cast(tableInput.commandInputs)
     
     if LinkOrJoint =='' or LinkOrJoint == 'Link':
         dropdownthingy = True
-        numoflinks += 1
+        _ms.numoflinks += 1
     elif LinkOrJoint =='Joint':
         dropdownthingy = False        
-        numofjoints += 1
+        _ms.numofjoints += 1
     
     # Create three new command inputs.
-    #valueInput = cmdInputs.addTextBoxCommandInput('TableInput_value{}'.format(_elnum), 'JorL', 'Link',1,True)
-    JorLInput = cmdInputs.addDropDownCommandInput('TableInput_value{}'.format(_elnum), 'JorLTable{}'.format(_elnum), adsk.core.DropDownStyles.TextListDropDownStyle)
+    #valueInput = cmdInputs.addTextBoxCommandInput('TableInput_value{}'.format(_ms.elnum ), 'JorL', 'Link',1,True)
+    JorLInput = cmdInputs.addDropDownCommandInput('TableInput_value{}'.format(_ms.elnum ), 'JorLTable{}'.format(_ms.elnum ), adsk.core.DropDownStyles.TextListDropDownStyle)
     dropdownItems = JorLInput.listItems
     dropdownItems.add('Link', dropdownthingy, '')
     dropdownItems.add('Joint', not dropdownthingy,'')   
-    if _elnum == 0:
+    if _ms.elnum  == 0:
         rightlinkname = 'base'        
     elif LinkOrJoint =='' or LinkOrJoint == 'Link':
-        rightlinkname = 'link' +str(numoflinks) # str(_elnum)
+        rightlinkname = 'link' +str(_ms.numoflinks) # str(_ms.elnum )
     elif LinkOrJoint =='Joint':
-        rightlinkname = 'joint' + str(numofjoints)# str(_elnum)
+        rightlinkname = 'joint' + str(_ms.numofjoints)# str(_ms.elnum )
         
-    stringInput =  cmdInputs.addStringValueInput('TableInput_string{}'.format(_elnum), 'StringTable{}'.format(_elnum), rightlinkname)
-    elnnumInput =  cmdInputs.addStringValueInput('elnum{}'.format(_elnum), 'elnumTable{}'.format(_elnum), str(_elnum))
-    #spinnerInput = cmdInputs.addIntegerSpinnerCommandInput('spinnerInt{}'.format(_elnum), 'Integer Spinner', 0 , 100 , 2, int(_elnum))
-    slbutInput = cmdInputs.addBoolValueInput('butselectClick{}'.format(_elnum),'Select',  False,'', True)
+    stringInput =  cmdInputs.addStringValueInput('TableInput_string{}'.format(_ms.elnum ), 'StringTable{}'.format(_ms.elnum ), rightlinkname)
+    elnnumInput =  cmdInputs.addStringValueInput('elnum{}'.format(_ms.elnum ), 'elnumTable{}'.format(_ms.elnum ), str(_ms.elnum ))
+    #spinnerInput = cmdInputs.addIntegerSpinnerCommandInput('spinnerInt{}'.format(_ms.elnum ), 'Integer Spinner', 0 , 100 , 2, int(_ms.elnum ))
+    slbutInput = cmdInputs.addBoolValueInput('butselectClick{}'.format(_ms.elnum ),'Select',  False,'', True)
  
     
     
@@ -818,9 +825,9 @@ def addRowToTable(tableInput,LinkOrJoint):
     print(ha3)
     
     # Increment a counter used to make each row unique.
-    global _rowNumber, _thistree
-    _rowNumber = _rowNumber + 1
-    _elnum += 1
+
+    _ms.rowNumber = _ms.rowNumber + 1
+    _ms.elnum  += 1
     
 
 # Event handler that reacts to any changes the user makes to any of the command inputs.
@@ -829,7 +836,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
         super().__init__()
     def notify(self, args):
         try:
-            global _thistree, currentel, _rowNumber, _oldrow, packagename
+            global _ms
             
             eventArgs = adsk.core.InputChangedEventArgs.cast(args)
             inputs = eventArgs.inputs
@@ -853,10 +860,10 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
             else:
                 jointselInput = jointgroupInput.children.itemById('jointselection')             
             
-#            if _thistree.currentel is not None:
-#                _oldrow = _thistree.currentel.row
+#            if _ms.thistree.currentel is not None:
+#                _ms.oldrow = _ms.thistree.currentel.row
 #            else:
-#                _oldrow = -1
+#                _ms.oldrow = -1
                 
    
             
@@ -869,7 +876,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     pass
                 else:
                     elementtobedefined = tableInput.getInputAtPosition(tableInput.selectedRow,0).value                
-                    setcurrel(elementtobedefined,debugInput, _oldrow, linkselInput, jointselInput)
+                    setcurrel(elementtobedefined,debugInput, _ms.oldrow, linkselInput, jointselInput)
                 
 #                crnum = getrow('TableInput_value', cmdInput.id, tableInput.selectedRow,debugInput)
 #                if crnum and tableInput.selectedRow != -1 and tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint' and tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled:
@@ -885,12 +892,12 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                         pass
                     else:
                         elementtobedefined = tableInput.getInputAtPosition(tableInput.selectedRow,0).value                
-                        setcurrel(elementtobedefined,debugInput, _oldrow, linkselInput, jointselInput)
+                        setcurrel(elementtobedefined,debugInput, _ms.oldrow, linkselInput, jointselInput)
                         #### it was getting complicated for me to debug this, so i am simpliflying the UI. i will only be able to change the name of the selected link. that's it. 
                         #### i know clicking it changes the row - this doesn~t happen so nicely with the string, so i will use this
                         tableInput.getInputAtPosition(tableInput.selectedRow,2).isEnabled = True
-                        if _oldrow != -1 and _oldrow != tableInput.selectedRow:
-                            tableInput.getInputAtPosition(_oldrow,2).isEnabled = False
+                        if _ms.oldrow != -1 and _ms.oldrow != tableInput.selectedRow:
+                            tableInput.getInputAtPosition(_ms.oldrow,2).isEnabled = False
                         
 #                if cmdInput.id == 'tableCreate' and  tableInput.getInputAtPosition(tableInput.selectedRow,1).isEnabled:           
 #    
@@ -899,12 +906,12 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
 #                    if tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Link':
 #                        linkname = tableInput.getInputAtPosition(tableInput.selectedRow,2).value
 #                        logging.debug('adding link:' + str(linkname))
-#                        _thistree.addLink(linkname,tableInput.selectedRow)
+#                        _ms.thistree.addLink(linkname,tableInput.selectedRow)
 #                        setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
 #                    elif tableInput.getInputAtPosition(tableInput.selectedRow,1).selectedItem.name == 'Joint':
 #                        jointname = tableInput.getInputAtPosition(tableInput.selectedRow,2).value
 #                        logging.debug('adding joint:' + str(jointname))
-#                        _thistree.addJoint(jointname,tableInput.selectedRow)
+#                        _ms.thistree.addJoint(jointname,tableInput.selectedRow)
 #                        setcurrel(tableInput.selectedRow,debugInput, oldrow, linkselInput, jointselInput)
                             
                 crnum = getrow('TableInput_string', cmdInput.id, tableInput,debugInput)
@@ -915,33 +922,33 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                         ### it means we have nothing selecte, so we don~t want to change anything
                         pass
                     else:
-                        _thistree.currentel.name =  tableInput.getInputAtPosition(tableInput.selectedRow,2).value
+                        _ms.thistree.currentel.name =  tableInput.getInputAtPosition(tableInput.selectedRow,2).value
                         elementtobedefined = tableInput.getInputAtPosition(tableInput.selectedRow,0).value                
-                        setcurrel(elementtobedefined,debugInput, _oldrow, linkselInput, jointselInput)
+                        setcurrel(elementtobedefined,debugInput, _ms.oldrow, linkselInput, jointselInput)
                     
                 
                 if cmdInput.id == 'packagename':
                     pkgnInput = inputs.itemById('packagename')
-                    packagename = pkgnInput.value
+                    _ms.packagename = pkgnInput.value
                     
                 if cmdInput.id == 'tableJointAdd':
                     addRowToTable(tableInput,'Joint')
-                    tableInput.getInputAtPosition(_rowNumber-1,1).isEnabled = False
+                    tableInput.getInputAtPosition(_ms.rowNumber-1,1).isEnabled = False
                     ####horrible hack because it is lateand i am tired of this thing.
-                    logging.debug('adding joint. row number'+str(_rowNumber))
-                    jointname = tableInput.getInputAtPosition(_rowNumber-1,2).value
+                    logging.debug('adding joint. row number'+str(_ms.rowNumber))
+                    jointname = tableInput.getInputAtPosition(_ms.rowNumber-1,2).value
                     logging.debug('adding joint:' + str(jointname))
-                    _thistree.addJoint(jointname,_elnum-1)
-                    #_thistree.addJoint(jointname,_elnum-1,inputs)
+                    _ms.thistree.addJoint(jointname,_ms.elnum -1)
+                    #_ms.thistree.addJoint(jointname,_ms.elnum -1,inputs)
                     #setcurrel(tableInput.getInputAtPosition(tableInput.selectedRow,0).value,debugInput, oldrow, linkselInput, jointselInput)
                     
                 if cmdInput.id == 'tableLinkAdd':
                     addRowToTable(tableInput,'Link')
-                    tableInput.getInputAtPosition(_rowNumber-1,1).isEnabled = False
-                    logging.debug('adding link. row number'+str(_rowNumber))
-                    linkname = tableInput.getInputAtPosition(_rowNumber-1,2).value
+                    tableInput.getInputAtPosition(_ms.rowNumber-1,1).isEnabled = False
+                    logging.debug('adding link. row number'+str(_ms.rowNumber))
+                    linkname = tableInput.getInputAtPosition(_ms.rowNumber-1,2).value
                     logging.debug('adding link:' + str(linkname))
-                    _thistree.addLink(linkname,_elnum-1)
+                    _ms.thistree.addLink(linkname,_ms.elnum -1)
                     #setcurrel(tableInput.getInputAtPosition(tableInput.selectedRow,0).value,debugInput, oldrow, linkselInput, jointselInput)
                         
                 if cmdInput.id == 'tableAdd':
@@ -953,7 +960,7 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                         ###this only works if every element is created as well...
                         logging.debug('trying to delete element from row:' + str(tableInput.selectedRow) + ' supposedly index:' + tableInput.getInputAtPosition(tableInput.selectedRow,0).value)
                         elementnumbertoremove = tableInput.getInputAtPosition(tableInput.selectedRow,0).value
-                        _thistree.rmElement(elementnumbertoremove)
+                        _ms.thistree.rmElement(elementnumbertoremove)
                         tableInput.deleteRow(tableInput.selectedRow)
                         
                 ### setting up visibility of joint and link group selection stufffs:
@@ -968,9 +975,13 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     jointgroupInput.isVisible = True
                     
                     chcontrols(jointgroupInput.children,True,True)
+                    #
+                    assert _ms.thistree.currentel.isJoint
+                    _ms.thistree.currentel.origin.setxyzrpy(jointgroupInput.children)
+
                     pln = jointgroupInput.children.itemById('parentlinkname')
                     cln = jointgroupInput.children.itemById('childlinkname')
-                    alllinkstr, _ = _thistree.allLinks()
+                    alllinkstr, _ = _ms.thistree.allLinks()
                     alllinkgr = alllinkstr.split('\n')
                     pln.listItems.clear()
                     cln.listItems.clear()
@@ -981,14 +992,14 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
             if cmdInput.id == 'linkselection':
                 #### wait, i think i can export a selection! so...
                 #### so, if I try to select things without having set anything, it jumps here into linkselection. I don't want this to happen, so i will make it create a ballon to warn it
-                if 'group' not in dir(_thistree.currentel):
+                if 'group' not in dir(_ms.thistree.currentel):
                     _ui.messageBox('Must create link or joint before selecting!')
                     return
-                _thistree.currentel.group = [] #### i refer to element, but i know it is a link!
+                _ms.thistree.currentel.group = [] #### i refer to element, but i know it is a link!
                 for i in range(0, linkselInput.selectionCount):
-                    if linkselInput.selection(i).entity not in _thistree.currentel.group:
+                    if linkselInput.selection(i).entity not in _ms.thistree.currentel.group:
                         logging.debug('adding link entity:'+ linkselInput.selection(i).entity.name)
-                        _thistree.currentel.group.append( linkselInput.selection(i).entity)
+                        _ms.thistree.currentel.group.append( linkselInput.selection(i).entity)
                         if "PRT" in linkselInput.selection(i).entity.name:
                             pass
                         ##TODO:
@@ -997,22 +1008,22 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
             if cmdInput.id == 'parentlinkname':
                 pln = inputs.itemById('parentlinkname')
                 aa= pln.selectedItem.name.split('link: ')
-                _thistree.currentel.parentlink = aa[1]
+                _ms.thistree.currentel.parentlink = aa[1]
                 
             if cmdInput.id == 'childlinkname':
                 cln = inputs.itemById('childlinkname')
                 aa= cln.selectedItem.name.split('link: ')
-                _thistree.currentel.childlink = aa[1]
+                _ms.thistree.currentel.childlink = aa[1]
 
             if cmdInput.id == 'jointselection' and jointselInput.selectionCount == 1:
                logging.debug('adding joint entity:'+ jointselInput.selection(0).entity.name)
-               _thistree.currentel.setjoint( jointselInput.selection(0).entity,cmdInput.id,inputs)
+               _ms.thistree.currentel.setjoint( jointselInput.selection(0).entity,cmdInput.id,inputs)
             
             if cmdInput.id == 'createtree':
                 #linkselInput.hasFocus = True #### if this is not set, then you cannot click OK idk why...
                 ### actually it is worse. if you don~t have a selection from the selection thing as active, it will not let you execute it.
                 ### so horrible not realy a fix:                
-                _thistree.gentree()
+                _ms.thistree.gentree()
                 if linkselInput.selectionCount == 0 and jointselInput.selectionCount == 0:
                     _ui.messageBox("one last thing: if you leave both joint and link selections without any thing select, fusion will believe it does not need to execute the command - so the OK will be grayed out. Moreover, if it either of them have focus, but don't have anything selected, it will show the OK button, but it will not execute anything. i currently don't know how to fix this without either saving the selection and repopulating them each time the user clicks on the select button- maybe a nice feature, but something that will take me some time to do, or adding subcommands to do those selections - something I am not sure if it is possible (it should be), but also will take me some time to get around doing. \n easiest way to fix this is go to a joint and reselect it, then run OK")
                 
@@ -1046,44 +1057,44 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
                             
             if cmdInput.id in ['distanceValueX','distanceValueY','distanceValueZ','angleValueRoll','angleValuePitch','angleValueYaw']:
-                assert _thistree.currentel.isJoint
-                _thistree.currentel.origin.interact(inputs) 
+                assert _ms.thistree.currentel.isJoint
+                _ms.thistree.currentel.origin.interact(inputs) 
                 #pass
             
             if cmdInput.id == 'setjoint':
-                assert _thistree.currentel.isJoint
-                _thistree.currentel.origin.jointset()
+                assert _ms.thistree.currentel.isJoint
+                _ms.thistree.currentel.origin.jointset()
                 
             if tableInput is not None:    
-                _oldrow = tableInput.selectedRow
+                _ms.oldrow = tableInput.selectedRow
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
 def setcurrel(tbsr,dbi, oldrow, linkselInput, jointselInput):
-    global _thistree
-    _thistree.setcurrentel(int(tbsr))
-    if _thistree.currentel is not None:
-        row = _thistree.currentel.row
+    global _ms
+    _ms.thistree.setcurrentel(int(tbsr))
+    if _ms.thistree.currentel is not None:
+        row = _ms.thistree.currentel.row
         if row != oldrow:
             linkselInput.clearSelection()
             jointselInput.clearSelection()   
             #### So I also want to change the current selection so that people can see what they did:
-            if 'isLink' in dir(_thistree.currentel) and _thistree.currentel.isLink: #link is selected
+            if 'isLink' in dir(_ms.thistree.currentel) and _ms.thistree.currentel.isLink: #link is selected
                 #pass
                 # linkselInput.addSelection
-                for i in range(0, len(_thistree.currentel.group)):
-                    linkselInput.addSelection(_thistree.currentel.group[i])
-            elif 'isJoint' in dir(_thistree.currentel) and _thistree.currentel.isJoint: #joint is selected
+                for i in range(0, len(_ms.thistree.currentel.group)):
+                    linkselInput.addSelection(_ms.thistree.currentel.group[i])
+            elif 'isJoint' in dir(_ms.thistree.currentel) and _ms.thistree.currentel.isJoint: #joint is selected
                 #pass
                 # jointselInput    
-                if _thistree.currentel.entity:
-                    jointselInput.addSelection(_thistree.currentel.entity)
+                if _ms.thistree.currentel.entity:
+                    jointselInput.addSelection(_ms.thistree.currentel.entity)
     else:
         row = oldrow
-    alllinkstr, _ = _thistree.allElements()
-    #dbi.text =str(oldrow)+'\t'+str(row)+'\n'+'current element: '+ _thistree.getcurrenteldesc() +  '\n' + alllinkstr
-    dbi.text ='current element: '+ _thistree.getcurrenteldesc() +  '\n' + alllinkstr
+    alllinkstr, _ = _ms.thistree.allElements()
+    #dbi.text =str(oldrow)+'\t'+str(row)+'\n'+'current element: '+ _ms.thistree.getcurrenteldesc() +  '\n' + alllinkstr
+    dbi.text ='current element: '+ _ms.thistree.getcurrenteldesc() +  '\n' + alllinkstr
 
 
 def getrow(commandstr,cmdid, tableInput, debugInput):
@@ -1094,7 +1105,7 @@ def getrow(commandstr,cmdid, tableInput, debugInput):
         elementtobedefined = tableInput.getInputAtPosition(tableInput.selectedRow,0).value    
     if commandstr in cmdid:
         _, crnum = cmdid.split(commandstr)
-        #_thistree.setcurrentlink(tbsr)
+        #_ms.thistree.setcurrentlink(tbsr)
         #print('this when accessing table row' + crnum + str(tbsr))
         #        logging.debug('this when accessing table row' + crnum + str(tbsr))
 
@@ -1108,23 +1119,20 @@ class AddLinkCommandDestroyHandler(adsk.core.CommandEventHandler):
         super().__init__()
     def notify(self, args):
         try:
+            global _ms
             logging.info("shutting down.")
             # When the command is done, terminate the script
             # This will release all globals which will remove all event handlers
-            if runfrommenu: 
-               for handler in logging.root.handlers[:]:
-                   handler.close()
-                   logging.root.removeHandler(handler)
-
-            global _rowNumber, _elnum, _oldrow, packagename, numoflinks, numofjoints
-            _rowNumber = 0
-            _elnum = 0
-            _oldrow = -1
-            packagename = 'mypackage'
-            numoflinks = -1
-            numofjoints = -1
+            for handler in logging.root.handlers[:]:
+                handler.close()                    
+                if not runfrommenu: 
+                    logging.root.removeHandler(handler)
+            global _ms
+            del(_ms)
+            _ms = []
             if runfrommenu:
-                adsk.terminate()
+                pass
+                #adsk.terminate()
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
@@ -1134,13 +1142,15 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
         super().__init__()
     def notify(self, args):
         try:
+            global _ms
             logging.debug('started execute! ')
-            global _thistree
+            _ms = Mothership()
+
             #eventArgs = adsk.core.CommandEventArgs.cast(args)    
             #inputs = eventArgs.inputs
             #cmdInput = eventArgs.input
     
-            base_directory, meshes_directory, components_directory = createpaths(packagename)
+            base_directory, meshes_directory, components_directory = createpaths(_ms.packagename)
             
             urdfroot = etree.Element("robot", name = "gummi")
             
@@ -1155,10 +1165,10 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
             setaxisjoint.childlink = 'base'
             setaxisjoint.makexml(urdfroot)
             
-#            _thistree.currentlink.genlink(meshes_directory)
+#            _ms.thistree.currentlink.genlink(meshes_directory)
 #            #currentlink.name = linkInput.value
-#            _thistree.currentlink.makelinkxml(urdfroot)      
-            allelstr, allels =  _thistree.allElements()
+#            _ms.thistree.currentlink.makelinkxml(urdfroot)      
+            allelstr, allels =  _ms.thistree.allElements()
             logging.info('found '+ str(len(allels)) + allelstr)            
             
             for i in range(0,len(allels)):
@@ -1197,9 +1207,12 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         super().__init__()
     def notify(self, args):
         try:
+                        
+            global _ms
+            _ms = MotherShip()
             # Get the command that was created.
             cmd = adsk.core.Command.cast(args.command)
-
+            
             # Connect to the command destroyed event.
             onDestroy = AddLinkCommandDestroyHandler()
             cmd.destroy.add(onDestroy)
@@ -1222,8 +1235,10 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             tabCmdInput3 = inputs.addTabCommandInput('tab_1', 'Add Link')   
             tab3ChildInputs = tabCmdInput3.children
             
+            tab3ChildInputs.addStringValueInput('packagename','Name of your URDF package', _ms.packagename)
+            #tab3ChildInputs.addStringValueInput('packagename','Name of your URDF package', 'mypackage')
+            ### TODO: needs to be set up with _ms.packagename when _ms is created!            
             
-            tab3ChildInputs.addStringValueInput('packagename','Name of your URDF package', packagename)
             # Create table input
             tableInput = tab3ChildInputs.addTableCommandInput('table', 'Table', 3, '1:2:3:1')
             
@@ -1231,11 +1246,11 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             tableInput.minimumVisibleRows = 10
 #            addRowToTable(tableInput,'Link')
 #            
-#            tableInput.getInputAtPosition(_rowNumber-1,1).isEnabled = False
-#            logging.debug('adding link. row number'+str(_rowNumber))
-#            linkname = tableInput.getInputAtPosition(_rowNumber-1,2).value
+#            tableInput.getInputAtPosition(_ms.rowNumber-1,1).isEnabled = False
+#            logging.debug('adding link. row number'+str(_ms.rowNumber))
+#            linkname = tableInput.getInputAtPosition(_ms.rowNumber-1,2).value
 #            logging.debug('adding link:' + str(linkname))
-#            _thistree.addLink(linkname,_rowNumber-1)
+#            _ms.thistree.addLink(linkname,_ms.rowNumber-1)
 
 
             # Add inputs into the table.            
@@ -1353,7 +1368,7 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 
-def createpaths(packagename):
+def createpaths(_ms_packagename):
     folderDlg = _ui.createFolderDialog()
     folderDlg.title = 'Choose location to save your URDF new package' 
     folderDlg.initialDirectory = os.path.join(os.path.expanduser("~"),'Documents')
@@ -1361,7 +1376,7 @@ def createpaths(packagename):
     if dlgResult != adsk.core.DialogResults.DialogOK:
         _ui.messageBox('you need to select a folder!')
         raise ValueError('Directory not selected. cannot continue.')
-    outputdir = os.path.join(folderDlg.folder,packagename)
+    outputdir = os.path.join(folderDlg.folder,_ms_packagename)
     thisscriptpath = os.path.dirname(os.path.realpath(__file__))
     base_directory = os.path.abspath(outputdir)
     _ui.messageBox(base_directory)
@@ -1385,7 +1400,7 @@ def createpaths(packagename):
           filedata = file.read()
         
         # Replace the target string
-        filedata = filedata.replace('somepackage', packagename)
+        filedata = filedata.replace('somepackage', _ms_packagename)
         
         # Write the file out again
         with open( os.path.join(base_directory, myfilename), 'w') as file:
@@ -1394,9 +1409,78 @@ def createpaths(packagename):
 
 thisdocsunits = ''
 
+class GenSTLCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            global _ui, _design
+            _app = adsk.core.Application.get()
+            #_ui = _app.userInterface
+            product = _app.activeProduct
+            _design = adsk.fusion.Design.cast(product)
+#            # Get the command that was created.
+#            cmd = adsk.core.Command.cast(args.command)
+#            
+#            # Connect to the command destroyed event.
+#            onDestroy = GenSTLCommandDestroyHandler()
+#            cmd.destroy.add(onDestroy)
+#            _handlers.append(onDestroy)
+#
+#            # Connect to the input changed event.           
+#            onInputChanged = GenSTLCommandInputChangedHandler()
+#            cmd.inputChanged.add(onInputChanged)
+#            _handlers.append(onInputChanged)    
+#
+#            onExecute = GenSTLCommandExecuteHandler()
+#            cmd.execute.add(onExecute)
+#            _handlers.append(onExecute)
+            
+
+
+            logging.debug('starting genSTL')
+            # Get the root component of the active design
+            rootComp = _design.rootComponent
+    
+            # Create two new components under root component
+            allOccs = rootComp.allOccurrences                    
+            
+            # create a single exportManager instance
+            exportMgr = _design.exportManager
+            
+            
+            fileDlg = _ui.createFileDialog()
+            fileDlg.isMultiSelectEnabled = False
+            fileDlg.title = 'Choose location to save your STL ' 
+            fileDlg.filter = '*.stl'
+            fileDlg.initialDirectory = os.path.join(os.path.expanduser("~"),'Documents')
+            dlgResult = fileDlg.showSave()
+            if dlgResult != adsk.core.DialogResults.DialogOK:
+                _ui.messageBox('you need to select a folder!')
+                return
+            
+                       # export the root component to printer utility
+            stlRootOptions = exportMgr.createSTLExportOptions(rootComp,  fileDlg.filename)
+    
+            # get all available print utilities
+            #printUtils = stlRootOptions.availablePrintUtilities
+    
+            # export the root component to the print utility, instead of a specified file
+            #for printUtil in printUtils:
+            #    stlRootOptions.sendToPrintUtility = True
+            #   stlRootOptions.printUtility = printUtil
+            stlRootOptions.sendToPrintUtility = False
+            logging.info('saving STL file: '+ fileDlg.filename)
+            exportMgr.execute(stlRootOptions)
+            _ui.messageBox('file {} saved successfully'.format(fileDlg.filename))
+        
+        except:
+            logging.error('Failed:\n{}'.format(traceback.format_exc()))
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
 def run(context):
     try:
-        global _app, _ui, _design, _thistree, thisdocsunits
+        global _app, _ui, _design, _ms, thisdocsunits
         _app = adsk.core.Application.get()
         _ui = _app.userInterface
         product = _app.activeProduct
@@ -1432,24 +1516,38 @@ def run(context):
         else:
             pass
 
+        genSTLcmdDef = _ui.commandDefinitions.itemById('cmdInputsgenSTL')
+        if not genSTLcmdDef:
+            genSTLcmdDef = _ui.commandDefinitions.addButtonDefinition('cmdInputsgenSTL', 'Generate STL', 'Generate single STL (in case some of them are incorrect/changed)')
+        else:
+            pass
+
         # Connect to the command created event.
         onCommandCreated = AddLinkCommandCreatedHandler()
         addlinkcmdDef.commandCreated.add(onCommandCreated)
         _handlers.append(onCommandCreated)
         
-        _thistree = UrdfTree()
+        on2CommandCreated = GenSTLCommandCreatedHandler()
+        genSTLcmdDef.commandCreated.add(on2CommandCreated)
+        _handlers.append(on2CommandCreated)
+        #_ms.thistree = UrdfTree()
         if runfrommenu:
             
             # will try to create a button for this guy
             # but first morruca
             while tbPanel.controls.itemById('cmdInputsAddLink'):
                 a = tbPanel.controls.itemById('cmdInputsAddLink')
-                a.deleteMe
+                a.deleteMe()
+            
+            while tbPanel.controls.itemById('cmdInputsgenSTL'):
+                a = tbPanel.controls.itemById('cmdInputsgenSTL')
+                a.deleteMe()
             
             tbPanel.controls.addCommand(addlinkcmdDef)          
-            
+            tbPanel.controls.addCommand(genSTLcmdDef)  
             
         else:
+           # _ms = MotherShip()
             # Execute the command definition.
             addlinkcmdDef.execute()
         
@@ -1467,16 +1565,54 @@ def run(context):
                    handler.close()
                    logging.root.removeHandler(handler)
 
-            global _rowNumber, _elnum, _oldrow, packagename, numoflinks, numofjoints
-            _rowNumber = 0
-            _elnum = 0
-            _oldrow = -1
-            packagename = 'mypackage'
-            numoflinks = -1
-            numofjoints = -1
+            del(_ms)
+            _ms = []
             if runfrommenu:
-                adsk.terminate()
+                pass
+                #adsk.terminate()
         except:
             _ui.messageBox('Failed in shutdown sequence!:\n{}'.format(traceback.format_exc()))
+        if _ui:
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            
+def stop(context):
+    global _ui,_app,_design,_handlers,_ms,runfrommenu
+    logging.info("stopping addin")
+    
+    try:
+        workSpace = _ui.workspaces.itemById('FusionSolidEnvironment')
+        tbPanels = workSpace.toolbarPanels
+        
+        tbPanel = tbPanels.itemById('SolidScriptsAddinsPanel')
+
+        #genSTLcmdDef = _ui.commandDefinitions.itemById('cmdInputsgenSTL')
+        #addlinkcmdDef = _ui.commandDefinitions.itemById('cmdInputsAddLink')
+        logging.info("stopping addin2")  
+        if runfrommenu:
+            while tbPanel.controls.itemById('cmdInputsAddLink'):
+                logging.info("stopping addin3")
+                a = tbPanel.controls.itemById('cmdInputsAddLink')
+                a.deleteMe()
+            
+            while tbPanel.controls.itemById('cmdInputsgenSTL'):
+                logging.info("stopping addin4")
+                a = tbPanel.controls.itemById('cmdInputsgenSTL')
+                a.deleteMe()
+        logging.info("stopping addin5")
+        _ui.messageBox('Stop addin')
+        #_app = None
+        #_ui  = None
+        #_design = None
+        
+        #
+        
+        # Global set of event handlers to keep them referenced for the duration of the command
+        _handlers = []
+        _ms = []
+        #del(_ui,_app,_design,_handlers,_ms,runfrommenu)
+        #adsk.terminate()
+        logging.info("stopping addin6")
+    except:
+        logging.error('Failed hard while stopping:\n{}'.format(traceback.format_exc()))
         if _ui:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
