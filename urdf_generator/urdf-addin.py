@@ -1144,7 +1144,7 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
         try:
             global _ms
             logging.debug('started execute! ')
-            _ms = Mothership()
+            _ms = MotherShip()
 
             #eventArgs = adsk.core.CommandEventArgs.cast(args)    
             #inputs = eventArgs.inputs
