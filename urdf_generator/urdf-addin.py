@@ -13,7 +13,6 @@ _app = None
 _ui  = None
 _design = None
 
-
 runfrommenu = True
 
 # Global set of event handlers to keep them referenced for the duration of the command
@@ -1406,6 +1405,75 @@ def createpaths(_ms_packagename):
 
 thisdocsunits = ''
 
+class GenSTLCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            global _ui, _design
+            _app = adsk.core.Application.get()
+            #_ui = _app.userInterface
+            product = _app.activeProduct
+            _design = adsk.fusion.Design.cast(product)
+#            # Get the command that was created.
+#            cmd = adsk.core.Command.cast(args.command)
+#            
+#            # Connect to the command destroyed event.
+#            onDestroy = GenSTLCommandDestroyHandler()
+#            cmd.destroy.add(onDestroy)
+#            _handlers.append(onDestroy)
+#
+#            # Connect to the input changed event.           
+#            onInputChanged = GenSTLCommandInputChangedHandler()
+#            cmd.inputChanged.add(onInputChanged)
+#            _handlers.append(onInputChanged)    
+#
+#            onExecute = GenSTLCommandExecuteHandler()
+#            cmd.execute.add(onExecute)
+#            _handlers.append(onExecute)
+            
+
+
+            logging.debug('starting genSTL')
+            # Get the root component of the active design
+            rootComp = _design.rootComponent
+    
+            # Create two new components under root component
+            allOccs = rootComp.allOccurrences                    
+            
+            # create a single exportManager instance
+            exportMgr = _design.exportManager
+            
+            
+            fileDlg = _ui.createFileDialog()
+            fileDlg.isMultiSelectEnabled = False
+            fileDlg.title = 'Choose location to save your STL ' 
+            fileDlg.filter = '*.stl'
+            fileDlg.initialDirectory = os.path.join(os.path.expanduser("~"),'Documents')
+            dlgResult = fileDlg.showSave()
+            if dlgResult != adsk.core.DialogResults.DialogOK:
+                _ui.messageBox('you need to select a folder!')
+                return
+            
+                       # export the root component to printer utility
+            stlRootOptions = exportMgr.createSTLExportOptions(rootComp,  fileDlg.filename)
+    
+            # get all available print utilities
+            #printUtils = stlRootOptions.availablePrintUtilities
+    
+            # export the root component to the print utility, instead of a specified file
+            #for printUtil in printUtils:
+            #    stlRootOptions.sendToPrintUtility = True
+            #   stlRootOptions.printUtility = printUtil
+            stlRootOptions.sendToPrintUtility = False
+            logging.info('saving STL file: '+ fileDlg.filename)
+            exportMgr.execute(stlRootOptions)
+            _ui.messageBox('file {} saved successfully'.format(fileDlg.filename))
+        
+        except:
+            logging.error('Failed:\n{}'.format(traceback.format_exc()))
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
 def run(context):
     try:
         global _app, _ui, _design, _ms, thisdocsunits
@@ -1444,11 +1512,20 @@ def run(context):
         else:
             pass
 
+        genSTLcmdDef = _ui.commandDefinitions.itemById('cmdInputsgenSTL')
+        if not genSTLcmdDef:
+            genSTLcmdDef = _ui.commandDefinitions.addButtonDefinition('cmdInputsgenSTL', 'Generate STL', 'Generate single STL (in case some of them are incorrect/changed)')
+        else:
+            pass
+
         # Connect to the command created event.
         onCommandCreated = AddLinkCommandCreatedHandler()
         addlinkcmdDef.commandCreated.add(onCommandCreated)
         _handlers.append(onCommandCreated)
         
+        on2CommandCreated = GenSTLCommandCreatedHandler()
+        genSTLcmdDef.commandCreated.add(on2CommandCreated)
+        _handlers.append(on2CommandCreated)
         #_ms.thistree = UrdfTree()
         if runfrommenu:
             
@@ -1456,10 +1533,14 @@ def run(context):
             # but first morruca
             while tbPanel.controls.itemById('cmdInputsAddLink'):
                 a = tbPanel.controls.itemById('cmdInputsAddLink')
-                a.deleteMe
+                a.deleteMe()
+            
+            while tbPanel.controls.itemById('cmdInputsgenSTL'):
+                a = tbPanel.controls.itemById('cmdInputsgenSTL')
+                a.deleteMe()
             
             tbPanel.controls.addCommand(addlinkcmdDef)          
-            
+            tbPanel.controls.addCommand(genSTLcmdDef)  
             
         else:
            # _ms = MotherShip()
@@ -1483,8 +1564,51 @@ def run(context):
             del(_ms)
             _ms = []
             if runfrommenu:
-                adsk.terminate()
+                pass
+                #adsk.terminate()
         except:
             _ui.messageBox('Failed in shutdown sequence!:\n{}'.format(traceback.format_exc()))
+        if _ui:
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            
+def stop(context):
+    global _ui,_app,_design,_handlers,_ms,runfrommenu
+    logging.info("stopping addin")
+    
+    try:
+        workSpace = _ui.workspaces.itemById('FusionSolidEnvironment')
+        tbPanels = workSpace.toolbarPanels
+        
+        tbPanel = tbPanels.itemById('SolidScriptsAddinsPanel')
+
+        #genSTLcmdDef = _ui.commandDefinitions.itemById('cmdInputsgenSTL')
+        #addlinkcmdDef = _ui.commandDefinitions.itemById('cmdInputsAddLink')
+        logging.info("stopping addin2")  
+        if runfrommenu:
+            while tbPanel.controls.itemById('cmdInputsAddLink'):
+                logging.info("stopping addin3")
+                a = tbPanel.controls.itemById('cmdInputsAddLink')
+                a.deleteMe()
+            
+            while tbPanel.controls.itemById('cmdInputsgenSTL'):
+                logging.info("stopping addin4")
+                a = tbPanel.controls.itemById('cmdInputsgenSTL')
+                a.deleteMe()
+        logging.info("stopping addin5")
+        _ui.messageBox('Stop addin')
+        #_app = None
+        #_ui  = None
+        #_design = None
+        
+        #
+        
+        # Global set of event handlers to keep them referenced for the duration of the command
+        _handlers = []
+        _ms = []
+        #del(_ui,_app,_design,_handlers,_ms,runfrommenu)
+        #adsk.terminate()
+        logging.info("stopping addin6")
+    except:
+        logging.error('Failed hard while stopping:\n{}'.format(traceback.format_exc()))
         if _ui:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
