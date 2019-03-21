@@ -975,6 +975,10 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     jointgroupInput.isVisible = True
                     
                     chcontrols(jointgroupInput.children,True,True)
+                    #
+                    assert _ms.thistree.currentel.isJoint
+                    _ms.thistree.currentel.origin.setxyzrpy(jointgroupInput.children)
+
                     pln = jointgroupInput.children.itemById('parentlinkname')
                     cln = jointgroupInput.children.itemById('childlinkname')
                     alllinkstr, _ = _ms.thistree.allLinks()
