@@ -82,7 +82,7 @@ class UrdfTree:
         return placedlinks, thiselementsdict, report
         
     def gentree(self):
-
+        logging.info('\nstarted gentree!\n')
         #report = ''
         #thiselementsdict = deepcopy(self.elementsdict)
         thiselementsdict = {}
@@ -310,13 +310,15 @@ class OrVec:
         self.x = x
         self.y = y
         self.z = z
+        logging.debug('set element with origin xyz:{}'.format(self.xyz))
     def setrpy(self,r,p,y):
         self.rpy = str(r/180*PI)+' ' + str(p/180*PI)+' ' + str(y/180*PI) 
         #TODO: this maybe not the right conversion constant!!!!!!!!!!        
         self.r = r
         self.p = p
         self.yaw = y
-        
+        logging.debug('set element with origin rpy:{}'.format(self.xyz))
+
                 
         
 class SixDegree(OrVec):
@@ -503,8 +505,9 @@ class Link:
             translation = adsk.core.Vector3D.create(-self.coordinatesystem.x, -self.coordinatesystem.y, -self.coordinatesystem.z)
             removejointtranslation.setToIdentity()
             removejointtranslation.translation = translation
-            logging.debug('Offset from joint is:' + str( removejointtranslation.asArray()))
-            
+            logging.debug('Offset from joint tm is:' + str( removejointtranslation.asArray()))
+            logging.debug('Offset from joint translation is:' + str( removejointtranslation.translation.asArray()))
+
             #### add occurrances from other stuff to this new stuff
             for i in range(0,len(self.group)):
                 #express = 'it'+str(i)+ '=self.group[i].transform.copy()'
@@ -516,14 +519,16 @@ class Link:
                     thisoccname = thisoccnamelist[0]
                     for k in range(1,len(thisoccnamelist)):
                         thisoccname = thisoccname + '+' + thisoccnamelist[k]
-                    logging.info('getting the tm for:'+thisoccname)
+                    logging.info('\tTMS::: getting the tm for:'+thisoccname)
                     for l in range(0,allOccs.count):
                         if allOccs.item(l).fullPathName == thisoccname:
                             #then i want to multiply their matrices!
                             lasttm = allOccs.item(l).transform.copy()
                             newrotl.append(lasttm)
                             logging.debug(allOccs.item(l).fullPathName)
-                            logging.debug('with tm:' + str(lasttm.asArray()))
+                            logging.debug('\twith tm:' + str(lasttm.asArray()))
+                            logging.debug('\twith translation is:' + str( lasttm.translation.asArray()))
+
                             #newrot.transformBy(allOccs.item(l).transform)
                     ### now that i have all the occurrences names i need to get them from allOccs(?!)
                 lasttransform = self.group[i].transform.copy()
@@ -717,6 +722,7 @@ class Joint:
 
     def setrealorigin(self, fathercoordinatesystem):
         assert fathercoordinatesystem.isset
+        logging.debug('setting real origins')
         self.realorigin.setxyz(self.origin.x- fathercoordinatesystem.x, self.origin.y - fathercoordinatesystem.y, self.origin.z- fathercoordinatesystem.z)
             
     def getitems(self):
@@ -1171,10 +1177,11 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
 #            #currentlink.name = linkInput.value
 #            _ms.thistree.currentlink.makelinkxml(urdfroot)      
             allelstr, allels =  _ms.thistree.allElements()
-            logging.info('found '+ str(len(allels)) + allelstr)            
+            logging.info('found '+ str(len(allels)) +'elements.\n'+ allelstr)            
             
             for i in range(0,len(allels)):
                 if 'isLink' in dir(allels[i]) and allels[i].isLink:
+                    logging.info(bigprint('calling genlink for link:{}'.format(allels[i].name)))
                     allels[i].genlink(meshes_directory, components_directory)
             #currentlink.name = linkInput.value
                 allels[i].makexml(urdfroot)    
@@ -1201,7 +1208,10 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
         except:
             logging.error('Failed:\n{}'.format(traceback.format_exc()))
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
-        
+
+def bigprint(string):
+    return '\n==============================\n {}\n==============================\n'.format(string)
+
 # Event handler that reacts when the command definitio is executed which
 # results in the command being created and this event being fired.
 class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
@@ -1209,8 +1219,14 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         super().__init__()
     def notify(self, args):
         try:
-                        
-            global _ms
+            
+            global _ms, _design
+            _app = adsk.core.Application.get()
+            #_ui = _app.userInterface
+            product = _app.activeProduct
+            _design = adsk.fusion.Design.cast(product)
+            
+            logging.info(bigprint('Starting GUI'))
             _ms = MotherShip()
             # Get the command that was created.
             cmd = adsk.core.Command.cast(args.command)
@@ -1579,7 +1595,7 @@ def run(context):
             
 def stop(context):
     global _ui,_app,_design,_handlers,_ms,runfrommenu
-    logging.info("stopping addin")
+    logging.info("stopping addin urdfgen")
     
     try:
         workSpace = _ui.workspaces.itemById('FusionSolidEnvironment')
@@ -1601,7 +1617,7 @@ def stop(context):
                 a = tbPanel.controls.itemById('cmdInputsgenSTL')
                 a.deleteMe()
         logging.info("stopping addin5")
-        _ui.messageBox('Stop addin')
+        _ui.messageBox('Stop addin  urdfgen')
         #_app = None
         #_ui  = None
         #_design = None
