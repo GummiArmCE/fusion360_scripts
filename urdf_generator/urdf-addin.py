@@ -1022,7 +1022,10 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
             if cmdInput.id == 'createtree':
                 #linkselInput.hasFocus = True #### if this is not set, then you cannot click OK idk why...
                 ### actually it is worse. if you don~t have a selection from the selection thing as active, it will not let you execute it.
-                ### so horrible not realy a fix:                
+                ### so horrible not realy a fix: 
+                linkgroupInput.isVisible = False
+                jointgroupInput.isVisible = False          
+                chcontrols(jointgroupInput.children,False,False)
                 _ms.thistree.gentree()
                 if linkselInput.selectionCount == 0 and jointselInput.selectionCount == 0:
                     _ui.messageBox("one last thing: if you leave both joint and link selections without any thing select, fusion will believe it does not need to execute the command - so the OK will be grayed out. Moreover, if it either of them have focus, but don't have anything selected, it will show the OK button, but it will not execute anything. i currently don't know how to fix this without either saving the selection and repopulating them each time the user clicks on the select button- maybe a nice feature, but something that will take me some time to do, or adding subcommands to do those selections - something I am not sure if it is possible (it should be), but also will take me some time to get around doing. \n easiest way to fix this is go to a joint and reselect it, then run OK")
@@ -1144,7 +1147,6 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
         try:
             global _ms
             logging.debug('started execute! ')
-            _ms = MotherShip()
 
             #eventArgs = adsk.core.CommandEventArgs.cast(args)    
             #inputs = eventArgs.inputs
