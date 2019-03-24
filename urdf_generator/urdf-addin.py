@@ -304,20 +304,21 @@ class OrVec:
         
         self.isset = False
     def setxyz(self,x,y,z):
+        unitsMgr = _design.fusionUnitsManager
+        self.x = unitsMgr.convert(x ,'internalUnits', "m")
+        self.y = unitsMgr.convert(y ,'internalUnits', "m")
+        self.z = unitsMgr.convert(z ,'internalUnits', "m")
+        
         self.isset = True
-        self.xyz = str(x/100)+' ' + str(y/100)+' ' + str(z/100) ### the internal representation of joint occurrences offsets seems to be in cm no matter what you change the units to be. this needs to be checked, but i think it is always like this. if you are reading this line and wondering if this is the reason why your assembly looks like it exploded, then I was wrong...
-        ### there will be inconsistencies here and if you change the values below to be "right", then the translation part on .genlink will not work. be mindful when trying to fix it. 
-        self.x = x
-        self.y = y
-        self.z = z
+        self.xyz = '{} {} {}'.format(self.x, self.y, self.z)
         logging.debug('set element with origin xyz:{}'.format(self.xyz))
     def setrpy(self,r,p,y):
-        self.rpy = str(r/180*PI)+' ' + str(p/180*PI)+' ' + str(y/180*PI) 
+        self.rpy = '{} {} {}'.format(r/180*PI, p/180*PI, y/180*PI)
         #TODO: this maybe not the right conversion constant!!!!!!!!!!        
         self.r = r
         self.p = p
         self.yaw = y
-        logging.debug('set element with origin rpy:{}'.format(self.xyz))
+        logging.debug('set element with origin rpy:{}'.format(self.rpy))
 
                 
         
@@ -328,13 +329,15 @@ class SixDegree(OrVec):
         super().__init__()
                 
     def setxyzrpy(self,inputs):
+        unitsMgr = _design.fusionUnitsManager
+
         distanceValue1Input = inputs.itemById('distanceValueX')
         distanceValue2Input = inputs.itemById('distanceValueY')
         distanceValue3Input = inputs.itemById('distanceValueZ')
         angleValue1Input = inputs.itemById('angleValueRoll')
         angleValue2Input = inputs.itemById('angleValuePitch')
         angleValue3Input = inputs.itemById('angleValueYaw')                
-                
+        
         distanceValue1Input.value = self.x
         distanceValue2Input.value = self.y
         distanceValue3Input.value = self.z
@@ -344,9 +347,9 @@ class SixDegree(OrVec):
         angleValue1Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
         angleValue2Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(0, 0, 1), adsk.core.Vector3D.create(1, 0, 0))
         angleValue3Input.setManipulator(adsk.core.Point3D.create(distanceValue1Input.value, distanceValue2Input.value, distanceValue3Input.value), adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0))
-                
+        logging.debug('setxyzrpy:{},{},{},{},{},{}'.format(self.x,self.y,self.z,self.r,self.p,self.yaw))
         
-    def interact(self,inputs):        
+    def interact(self,inputs):   
         distanceValue1Input = inputs.itemById('distanceValueX')
         distanceValue2Input = inputs.itemById('distanceValueY')
         distanceValue3Input = inputs.itemById('distanceValueZ')
@@ -355,11 +358,13 @@ class SixDegree(OrVec):
         angleValue3Input = inputs.itemById('angleValueYaw')                
         
         self.x = distanceValue1Input.value 
-        self.y = distanceValue2Input.value
+        self.y = distanceValue2Input.value 
         self.z = distanceValue3Input.value 
         self.r = angleValue1Input.value
         self.p = angleValue2Input.value 
         self.yaw = angleValue3Input.value       
+        logging.debug('interact xyzrpy:{},{},{},{},{},{}'.format(self.x,self.y,self.z,self.r,self.p,self.yaw))
+
         
     def jointset(self):
         self.isset = True
@@ -519,13 +524,15 @@ class Link:
                     thisoccname = thisoccnamelist[0]
                     for k in range(1,len(thisoccnamelist)):
                         thisoccname = thisoccname + '+' + thisoccnamelist[k]
-                    logging.info('\tTMS::: getting the tm for:'+thisoccname)
+                    logging.info('TMS::: getting the tm for: '+thisoccname)
                     for l in range(0,allOccs.count):
                         if allOccs.item(l).fullPathName == thisoccname:
                             #then i want to multiply their matrices!
                             lasttm = allOccs.item(l).transform.copy()
+                            convertedtranslation = adsk.core.Vector3D.create(0,lasttm.translation.x,0)#lasttm.translation.x, lasttm.translation.y, lasttm.translation.z)
+                            lasttm.translation = convertedtranslation
                             newrotl.append(lasttm)
-                            logging.debug(allOccs.item(l).fullPathName)
+                            logging.debug('\t{}'.format(allOccs.item(l).fullPathName))
                             logging.debug('\twith tm:' + str(lasttm.asArray()))
                             logging.debug('\twith translation is:' + str( lasttm.translation.asArray()))
 
@@ -559,6 +566,8 @@ class Link:
                 logging.info('from occurrence' + self.group[i].fullPathName)
                 
                 logging.debug('with tm:' + str(eval('it'+str(i)+'.asArray()')))
+                logging.debug('with translation:' + str(eval('it'+str(i)+'.translation.asArray()')))
+
                 stpOptions = exportMgr.createSTEPExportOptions(fileName, self.group[i].component)           
                 exportMgr.execute(stpOptions)
                 
@@ -1322,6 +1331,7 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             
             distanceValueInput = jtctrl.addDistanceValueCommandInput('distanceValueX', 'X', adsk.core.ValueInput.createByReal(0))#self.x+epsilon))
             distanceValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(1, 0, 0))
+            distanceValueInput.expression = '0.0001 m'
             #return
             distanceValueInput.hasMinimumValue = False
             distanceValueInput.hasMaximumValue = False
@@ -1335,7 +1345,8 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             distanceValueInput2.hasMaximumValue = False
             distanceValueInput2.isVisible = allvisible
             distanceValueInput2.isEnabled = allenabled
-            
+            distanceValueInput2.expression = '0.0001 m'
+
             # Create distance value input 3.
             distanceValueInput3 = jtctrl.addDistanceValueCommandInput('distanceValueZ', 'Z', adsk.core.ValueInput.createByReal(0))#self.z+epsilon))
             distanceValueInput3.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 0, 1))
@@ -1343,7 +1354,8 @@ class AddLinkCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             distanceValueInput3.hasMaximumValue = False     
             distanceValueInput3.isVisible = allvisible
             distanceValueInput3.isEnabled = allenabled
-            
+            distanceValueInput3.expression = '0.0001 m'
+
             # Create angle value input 1.
             angleValueInput = jtctrl.addAngleValueCommandInput('angleValueRoll', 'Roll', adsk.core.ValueInput.createByReal(0))#self.r+epsilon))
             angleValueInput.setManipulator(adsk.core.Point3D.create(0, 0, 0), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1))
@@ -1506,7 +1518,7 @@ def run(context):
         
         #createpaths('batatas')
         thisdocsunits = _design.unitsManager.defaultLengthUnits         
-        
+
         #if thisdocsunits != 'm':
         #     _ui.messageBox('So, funny thing, I have no idea on how to set default units and set them back using this API. As far as I am aware, it is currently(18-08-2018) impossible. So you need to change this documents units to meters and also make meters default for the URDF to be generated the right way - I have to create new documents, so if you don''t change the default, it won''t work\n. Once Autodesk either responds my forum question, or fixes ExportManager or allows for non-uniform affine transformations, this will no longer be necessary. ')
         #     return
