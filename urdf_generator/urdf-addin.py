@@ -13,7 +13,7 @@ _app = None
 _ui  = None
 _design = None
 
-runfrommenu = True
+runfrommenu = False
 
 # Global set of event handlers to keep them referenced for the duration of the command
 _handlers = []
@@ -303,11 +303,23 @@ class OrVec:
         self.setrpy(0,0,0)        
         
         self.isset = False
-    def setxyz(self,x,y,z):
-        unitsMgr = _design.fusionUnitsManager
-        self.x = unitsMgr.convert(x ,'internalUnits', "m")
-        self.y = unitsMgr.convert(y ,'internalUnits', "m")
-        self.z = unitsMgr.convert(z ,'internalUnits', "m")
+    def setxyz(self,x,y,z,**kwargs):
+        noconvert = False
+        for key, value in kwargs.items():
+            if key == 'noconvert' and value:
+                noconvert = True
+
+        if noconvert:
+            self.x = x
+            self.y = y
+            self.z = z
+
+        else:
+                    
+            unitsMgr = _design.fusionUnitsManager
+            self.x = unitsMgr.convert(x ,'internalUnits', "m")
+            self.y = unitsMgr.convert(y ,'internalUnits', "m")
+            self.z = unitsMgr.convert(z ,'internalUnits', "m")
         
         self.isset = True
         self.xyz = '{} {} {}'.format(self.x, self.y, self.z)
@@ -338,9 +350,9 @@ class SixDegree(OrVec):
         angleValue2Input = inputs.itemById('angleValuePitch')
         angleValue3Input = inputs.itemById('angleValueYaw')                
         
-        distanceValue1Input.value = self.x
-        distanceValue2Input.value = self.y
-        distanceValue3Input.value = self.z
+        distanceValue1Input.value = unitsMgr.convert(self.x,'m','internalUnits')
+        distanceValue2Input.value = unitsMgr.convert(self.y,'m','internalUnits')
+        distanceValue3Input.value = unitsMgr.convert(self.z,'m','internalUnits')
         angleValue1Input.value = self.r
         angleValue2Input.value = self.p
         angleValue3Input.value = self.yaw
@@ -350,6 +362,8 @@ class SixDegree(OrVec):
         logging.debug('setxyzrpy:{},{},{},{},{},{}'.format(self.x,self.y,self.z,self.r,self.p,self.yaw))
         
     def interact(self,inputs):   
+        unitsMgr = _design.fusionUnitsManager
+
         distanceValue1Input = inputs.itemById('distanceValueX')
         distanceValue2Input = inputs.itemById('distanceValueY')
         distanceValue3Input = inputs.itemById('distanceValueZ')
@@ -357,9 +371,9 @@ class SixDegree(OrVec):
         angleValue2Input = inputs.itemById('angleValuePitch')
         angleValue3Input = inputs.itemById('angleValueYaw')                
         
-        self.x = distanceValue1Input.value 
-        self.y = distanceValue2Input.value 
-        self.z = distanceValue3Input.value 
+        self.x = unitsMgr.convert(distanceValue1Input.value ,'internalUnits', "m")
+        self.y = unitsMgr.convert(distanceValue2Input.value ,'internalUnits', "m")
+        self.z = unitsMgr.convert(distanceValue3Input.value ,'internalUnits', "m")
         self.r = angleValue1Input.value
         self.p = angleValue2Input.value 
         self.yaw = angleValue3Input.value       
@@ -489,25 +503,78 @@ class Link:
             #assert type(a) == str
             #assert type(a) == str
         return urdfroot
+    
+    def settransform(self,occ):
+        """ version with transforms"""
+        transform = occ.transform
+        fullPathName = occ.fullPathName
+
+        # getting unitsmanager to be used for converstions
+        unitsMgr = _design.fusionUnitsManager
+    
+        lasttm = adsk.core.Matrix3D.create()
+
+        for iii in range(0,4):
+            for jjj in range(0,4):
+                logging.debug('\toriginal\t i:{}, j:{},\t{}'.format(iii,jjj,transform.getCell(iii,jjj)))
+                if iii != 3 and jjj == 3:
+                    lasttm.setCell(iii,jjj, unitsMgr.convert( transform.getCell(iii,3) ,'internalUnits', "m")) ## converts translation bits to meters
+                else:
+                    lasttm.setCell(iii,jjj, transform.getCell(iii,jjj))
+                logging.debug('\ttransformed\t i:{}, j:{},\t{}'.format(iii,jjj,lasttm.getCell(iii,jjj)))
         
+        logging.debug('\t{}'.format(fullPathName))
+        logging.debug('\twith tm:' + str(lasttm.asArray()))
+        logging.debug('\twith translation is:' + str( lasttm.translation.asArray()))
+        return lasttm
+        
+    def settransform2(self,occ):
+        """ version using bounding boxes"""
+        transform = occ.transform
+        fullPathName = occ.fullPathName
+        boundingboxMid = ( (occ.boundingBox.minPoint.asArray()[0]+occ.boundingBox.minPoint.asArray()[0])/2,(occ.boundingBox.minPoint.asArray()[1]+occ.boundingBox.minPoint.asArray()[1])/2, (occ.boundingBox.minPoint.asArray()[2]+occ.boundingBox.minPoint.asArray()[2])/2)
+        # getting unitsmanager to be used for converstions
+        unitsMgr = _design.fusionUnitsManager
+    
+        lasttm = adsk.core.Matrix3D.create()
+
+        for iii in range(0,4):
+            for jjj in range(0,4):
+                logging.debug('\toriginal\t i:{}, j:{},\t{}'.format(iii,jjj,transform.getCell(iii,jjj)))
+                if iii != 3 and jjj == 3:
+                    lasttm.setCell(iii,jjj, unitsMgr.convert( boundingboxMid[iii] ,'internalUnits', "m")) ## converts translation bits to meters
+                else:
+                    lasttm.setCell(iii,jjj, transform.getCell(iii,jjj))
+                logging.debug('\ttransformed\t i:{}, j:{},\t{}'.format(iii,jjj,lasttm.getCell(iii,jjj)))
+        
+        logging.debug('\t{}'.format(fullPathName))
+        logging.debug('\twith tm:' + str(lasttm.asArray()))
+        logging.debug('\twith translation is:' + str( lasttm.translation.asArray()))
+        return lasttm
 
     def genlink(self,meshes_directory, components_directory):
         didifail = 0        
         self.isVirtual = False
         try:            
             logging.debug('starting genlink')
+            # getting unitsmanager to be used for converstions
+            unitsMgr = _design.fusionUnitsManager            
+            
             # Get the root component of the active design
             rootComp = _design.rootComponent
-    
+            
             # Create two new components under root component
             allOccs = rootComp.allOccurrences                    
             
             # create a single exportManager instance
             exportMgr = _design.exportManager
             
-            ###TODO: this needs to be done for the joints as well. aff...
+            ###here I am calculating the inverse already...
             removejointtranslation = adsk.core.Matrix3D.create()
-            translation = adsk.core.Vector3D.create(-self.coordinatesystem.x, -self.coordinatesystem.y, -self.coordinatesystem.z)
+            translation = adsk.core.Vector3D.create(
+              unitsMgr.convert(-self.coordinatesystem.x,'m' ,'internalUnits'),
+              unitsMgr.convert(-self.coordinatesystem.y,'m' ,'internalUnits'),
+              unitsMgr.convert(-self.coordinatesystem.z,'m' ,'internalUnits'))
             removejointtranslation.setToIdentity()
             removejointtranslation.translation = translation
             logging.debug('Offset from joint tm is:' + str( removejointtranslation.asArray()))
@@ -529,20 +596,24 @@ class Link:
                         if allOccs.item(l).fullPathName == thisoccname:
                             #then i want to multiply their matrices!
                             lasttm = allOccs.item(l).transform.copy()
-                            convertedtranslation = adsk.core.Vector3D.create(0,lasttm.translation.x,0)#lasttm.translation.x, lasttm.translation.y, lasttm.translation.z)
-                            lasttm.translation = convertedtranslation
-                            newrotl.append(lasttm)
+                            #lasttm = self.settransform(allOccs.item(l))
+                            newrotl.append(lasttm)                            
                             logging.debug('\t{}'.format(allOccs.item(l).fullPathName))
                             logging.debug('\twith tm:' + str(lasttm.asArray()))
                             logging.debug('\twith translation is:' + str( lasttm.translation.asArray()))
-
+                            del(lasttm)
                             #newrot.transformBy(allOccs.item(l).transform)
                     ### now that i have all the occurrences names i need to get them from allOccs(?!)
-                lasttransform = self.group[i].transform.copy()
+                #lasttransform =  self.settransform(self.group[i])
                 
-                newrotl.append(lasttransform)
+                #lasttransform =  self.group[i].transform.copy()
+                #logging.debug('\t{}'.format(self.group[i].fullPathName))
+                #logging.debug('\tlast transform with tm:' + str(lasttransform.asArray()))
+                #logging.debug('\tlast transform with translation is:' + str( lasttransform.translation.asArray()))
                 
-#                newrot = removejointtranslation
+                #newrotl.append(lasttransform)
+                
+                #newrot = removejointtranslation
 
                 newrot = adsk.core.Matrix3D.create()
                 newrot.setToIdentity()
@@ -552,7 +623,7 @@ class Link:
                 newrot.transformBy(removejointtranslation)
                 express = 'it'+str(i)+ '=newrot'
                 exec(express)
-            
+                del(newrot)
             
             #stlname = rootComp.name.translate(None, ':!@#$')
             #line = re.sub('[!@#$]', '', line)
@@ -611,6 +682,7 @@ class Link:
                 thistransf = eval('it'+str(i))
                 ## i also want to scale them to SI units. doing it here is easier
                 #thistransf.transformBy(removejointtranslation)    
+                logging.debug(thistransf.asArray())
                 rootComp.occurrences.item(i).transform = thistransf
                 #rootComp.occurrences.item(i).transform = eval('it'+str(i))
                 pass
@@ -732,7 +804,7 @@ class Joint:
     def setrealorigin(self, fathercoordinatesystem):
         assert fathercoordinatesystem.isset
         logging.debug('setting real origins')
-        self.realorigin.setxyz(self.origin.x- fathercoordinatesystem.x, self.origin.y - fathercoordinatesystem.y, self.origin.z- fathercoordinatesystem.z)
+        self.realorigin.setxyz(self.origin.x- fathercoordinatesystem.x, self.origin.y - fathercoordinatesystem.y, self.origin.z- fathercoordinatesystem.z,noconvert=True)
             
     def getitems(self):
         items = 'genjn:'+self.generatingjointname+'\n'+'parent:' + self.parentlink + '\t' + 'child:' + self.childlink        
@@ -1015,8 +1087,8 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                     if linkselInput.selection(i).entity not in _ms.thistree.currentel.group:
                         logging.debug('adding link entity:'+ linkselInput.selection(i).entity.name)
                         _ms.thistree.currentel.group.append( linkselInput.selection(i).entity)
-                        if "PRT" in linkselInput.selection(i).entity.name:
-                            pass
+                        #if "PRT" in linkselInput.selection(i).entity.name:
+                        #    pass
                         ##TODO:
                         # REMOVE child occurrences that can be in the list, or they will be doubled in generating the link -> larger mesh, wrong weight and moments of inertia
                         #logging.debug(dir(linkselInput.selection(i).entity))
@@ -1409,13 +1481,13 @@ def createpaths(_ms_packagename):
     outputdir = os.path.join(folderDlg.folder,_ms_packagename)
     thisscriptpath = os.path.dirname(os.path.realpath(__file__))
     base_directory = os.path.abspath(outputdir)
-    _ui.messageBox(base_directory)
+    #_ui.messageBox(base_directory)
     if not os.path.exists(base_directory):
         os.makedirs(base_directory)
     meshes_directory = os.path.join(base_directory, "meshes/")
-    _ui.messageBox( meshes_directory)
+    #_ui.messageBox( meshes_directory)
     components_directory =  os.path.join(base_directory, "components/")
-    _ui.messageBox(components_directory)
+    #_ui.messageBox(components_directory)
     if not os.path.exists(meshes_directory):
         os.makedirs(meshes_directory)    
     if not os.path.exists(components_directory):
