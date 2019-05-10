@@ -499,7 +499,6 @@ class Link:
                 newrotl.append(lasttransform)
                 
                 if 0: ### I think this i not working at all. 
-                    newrot = removejointtranslation
                     for j in range(0,len(newrotl)):
     
                         lasttm = newrotl[j]
@@ -532,8 +531,11 @@ class Link:
                         except:
                             logging.debug('could not output corrections. {}'.format(traceback.format_exc()))
 
-                newrot = adsk.core.Matrix3D.create()
-                newrot.setToIdentity()
+                if 0:
+                    newrot = adsk.core.Matrix3D.create()
+                    newrot.setToIdentity()
+                else:
+                    newrot = removejointtranslation
 
                 for j in reversed(range(0,len(newrotl))):
                     newrot.transformBy(newrotl[j])
