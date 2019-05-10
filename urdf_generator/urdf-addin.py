@@ -15,6 +15,8 @@ _design = None
 
 runfrommenu = True
 
+SETDESIGNUNITSMETERBEFORE_BUILDINGTMS = True
+
 # Global set of event handlers to keep them referenced for the duration of the command
 _handlers = []
 _ms = []
@@ -489,9 +491,10 @@ class Link:
         self.isVirtual = False
         try:            
             logging.debug('starting genlink')
+
             # Get the root component of the active design
             rootComp = _design.rootComponent
-    
+            
             # Create two new components under root component
             allOccs = rootComp.allOccurrences                    
             
@@ -500,7 +503,7 @@ class Link:
             
             ###TODO: this needs to be done for the joints as well. aff...
             removejointtranslation = adsk.core.Matrix3D.create()
-            translation = adsk.core.Vector3D.create(-self.coordinatesystem.x, -self.coordinatesystem.y, -self.coordinatesystem.z)
+            translation = adsk.core.Vector3D.create(_unitsMgr.convert(-self.coordinatesystem.x, _unitsMgr.internalUnits,'m'), _unitsMgr.convert(-self.coordinatesystem.y, _unitsMgr.internalUnits,'m'), _unitsMgr.convert(-self.coordinatesystem.z, _unitsMgr.internalUnits,'m'))
             removejointtranslation.setToIdentity()
             removejointtranslation.translation = translation
             logging.debug('Offset from joint is:' + str( removejointtranslation.asArray()))
@@ -521,16 +524,55 @@ class Link:
                         if allOccs.item(l).fullPathName == thisoccname:
                             #then i want to multiply their matrices!
                             lasttm = allOccs.item(l).transform.copy()
+                            #trying to break the links here...
+                            #lasttm = adsk.core.Matrix3D.create()
+                            #lasttm.setWithArray(allOccs.item(l).transform.asArray())
+                            
                             newrotl.append(lasttm)
                             logging.debug(allOccs.item(l).fullPathName)
-                            logging.debug('with tm:' + str(lasttm.asArray()))
+                            
+                            logging.debug('with tm:' + str(lasttm.asArray() ))
+                            ### I am doing something wrong here. It works, sometimes, but some items are very very wrong. I wonder if it is a units problem. I am going to try to at least catch it:
+                            logging.debug('translations of tm are:'+ str(lasttm.translation.asArray()))
+                            
                             #newrot.transformBy(allOccs.item(l).transform)
                     ### now that i have all the occurrences names i need to get them from allOccs(?!)
                 lasttransform = self.group[i].transform.copy()
                 
                 newrotl.append(lasttransform)
                 
-#                newrot = removejointtranslation
+                newrot = removejointtranslation
+                for j in range(0,len(newrotl)):
+
+                    lasttm = newrotl[j]
+ #                   largestallowedtranslation = 1 # so more than 1 meter we will go crazy.
+ #                   if any([aaa>largestallowedtranslation for aaa in lasttm.translation.asArray()]):                
+                    try:
+                        logging.info('??:')
+
+                        logging.debug(lasttm.translation.asArray())
+                        othertm = adsk.core.Matrix3D.create()
+                        
+
+                        #lasttm.translation.scaleBy(scale)
+                        #othertm.translation.setWithArray((thistranslation[0]*scale,thistranslation[1]*scale,thistranslation[2]*scale))
+                        for ii in range(0,4):
+                            for jj in range(0,4):
+                                if (jj == 3) and (ii != 3):
+                                    othertm.setCell(ii,jj,_unitsMgr.convert(lasttm.getCell(ii,jj), _unitsMgr.internalUnits,'m'))
+                                else:                                                
+                                    othertm.setCell(ii,jj,lasttm.getCell(ii,jj))
+                        logging.info('transformed to mm:')
+                        logging.debug(othertm.translation.asArray())   
+                        logging.info('whole tm:')
+                        logging.debug(othertm.asArray())   
+                        #logging.info('transformed to cm:')
+                        #logging.debug(thistmarray/100)
+                        logging.info('and then we need to get it back into newrotl')
+                        newrotl.pop(j)
+                        newrotl.insert(j,othertm)
+                    except:
+                        logging.debug('could not output corrections. {}'.format(traceback.format_exc()))
 
                 newrot = adsk.core.Matrix3D.create()
                 newrot.setToIdentity()
@@ -684,11 +726,13 @@ class Joint:
             self.origin.setxyzrpy(inputs)
         except:
             try:
+                logging.error('Could not set joint origin using first element!! This is quite possibly a bug in the API.\n{}\n'.format(traceback.format_exc()))
+
                 self.origin.setxyz(joint.geometryOrOriginTwo.origin.x, joint.geometryOrOriginTwo.origin.y, joint.geometryOrOriginTwo.origin.z)
                 self.origin.setxyzrpy(inputs)
             except:                        
                 _ui.messageBox('Could not set joint origin. This will affect the whole assembly and it will be hard to fix!!! This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
-                logging.error('Could not set joint origin. This is quite possibly a bug in the API. {}'.format(traceback.format_exc()))
+                logging.error('Could not set joint origin with second element either!!. This is quite possibly a bug in the API. \n{}\n'.format(traceback.format_exc()))
             ### TODO so I am not using the base occurrences to set this joint - i am not using .geometryOrOriginTwo for anythin - so I might be making mistakes in prismatic joints - who uses those??? - so I should check to see if they are same and warn at least in case they are not...
                 logging.warn('Could not set joint origins for joint: ' + self.name+'. You need to edit the URDF and fix it manually.')
 
@@ -755,10 +799,10 @@ class Limit:
         self.effort = '0'
         self.velocity = '0'
         
-def superprint(level,stringo):
-    #logger = logging.getLogger(__name__)
-    #logger.debug(spaces(level*5)+stringo)
-    logging.debug(spaces(level*5)+stringo)
+#def superprint(level,stringo):
+#    #logger = logging.getLogger(__name__)
+#    #logger.debug(spaces(level*5)+stringo)
+#    logging.debug(spaces(level*5)+stringo)
 
 
 def clearupst(stringo):
@@ -767,14 +811,14 @@ def clearupst(stringo):
     return strstr2
 
 # Returns a string containing the especified number of spaces.
-def spaces(spaceCount):
-    result = ''
-    for i in range(0, spaceCount):
-        result += ' '
+#def spaces(spaceCount):
+#    result = ''
+#    for i in range(0, spaceCount):
+#        result += ' '
+#
+#    return result
 
-    return result
-
-
+# probably would make more sense to make this a function of mothership?
 # Adds a new row to the table.
 def addRowToTable(tableInput,LinkOrJoint):
     global _ms
@@ -1023,6 +1067,9 @@ class AddLinkCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
                 #linkselInput.hasFocus = True #### if this is not set, then you cannot click OK idk why...
                 ### actually it is worse. if you don~t have a selection from the selection thing as active, it will not let you execute it.
                 ### so horrible not realy a fix:                
+                chcontrols(jointgroupInput.children,False,False)
+                linkgroupInput.isVisible = False
+                jointgroupInput.isVisible = False                
                 _ms.thistree.gentree()
                 if linkselInput.selectionCount == 0 and jointselInput.selectionCount == 0:
                     _ui.messageBox("one last thing: if you leave both joint and link selections without any thing select, fusion will believe it does not need to execute the command - so the OK will be grayed out. Moreover, if it either of them have focus, but don't have anything selected, it will show the OK button, but it will not execute anything. i currently don't know how to fix this without either saving the selection and repopulating them each time the user clicks on the select button- maybe a nice feature, but something that will take me some time to do, or adding subcommands to do those selections - something I am not sure if it is possible (it should be), but also will take me some time to get around doing. \n easiest way to fix this is go to a joint and reselect it, then run OK")
@@ -1142,9 +1189,22 @@ class AddLinkCommandExecuteHandler(adsk.core.CommandEventHandler):
         super().__init__()
     def notify(self, args):
         try:
-            global _ms
             logging.debug('started execute! ')
-            _ms = MotherShip()
+            global _app, _ui, _design, _ms, _unitsMgr
+            _app = adsk.core.Application.get()
+            _ui = _app.userInterface
+            product = _app.activeProduct
+            _design = adsk.fusion.Design.cast(product)
+                        ### I am updating these guys because I was having strange errors over deleted elements, which I think means I was working in the wrong design (or not updating it properly). not sure, if this does not fix it, it should be removed
+
+            #if SETDESIGNUNITSMETERBEFORE_BUILDINGTMS:            
+                ### setting units to meters so stls will have proper sizes!
+            _unitsMgr = _design.fusionUnitsManager
+    
+            #    unitsMgr.distanceDisplayUnits = adsk.fusion.DistanceUnits.MeterDistanceUnits
+        
+
+            #_ms = MotherShip()
 
             #eventArgs = adsk.core.CommandEventArgs.cast(args)    
             #inputs = eventArgs.inputs
