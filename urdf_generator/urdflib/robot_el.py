@@ -498,38 +498,39 @@ class Link:
                 
                 newrotl.append(lasttransform)
                 
-                newrot = removejointtranslation
-                for j in range(0,len(newrotl)):
-
-                    lasttm = newrotl[j]
- #                   largestallowedtranslation = 1 # so more than 1 meter we will go crazy.
- #                   if any([aaa>largestallowedtranslation for aaa in lasttm.translation.asArray()]):                
-                    try:
-                        logging.info('??:')
-
-                        logging.debug(lasttm.translation.asArray())
-                        othertm = adsk.core.Matrix3D.create()
-                        
-
-                        #lasttm.translation.scaleBy(scale)
-                        #othertm.translation.setWithArray((thistranslation[0]*scale,thistranslation[1]*scale,thistranslation[2]*scale))
-                        for ii in range(0,4):
-                            for jj in range(0,4):
-                                if (jj == 3) and (ii != 3):
-                                    othertm.setCell(ii,jj,thisUnitsMgr.convert(lasttm.getCell(ii,jj), thisUnitsMgr.internalUnits,'m'))
-                                else:                                                
-                                    othertm.setCell(ii,jj,lasttm.getCell(ii,jj))
-                        logging.info('transformed to mm:')
-                        logging.debug(othertm.translation.asArray())   
-                        logging.info('whole tm:')
-                        logging.debug(othertm.asArray())   
-                        #logging.info('transformed to cm:')
-                        #logging.debug(thistmarray/100)
-                        logging.info('and then we need to get it back into newrotl')
-                        newrotl.pop(j)
-                        newrotl.insert(j,othertm)
-                    except:
-                        logging.debug('could not output corrections. {}'.format(traceback.format_exc()))
+                if 0: ### I think this i not working at all. 
+                    newrot = removejointtranslation
+                    for j in range(0,len(newrotl)):
+    
+                        lasttm = newrotl[j]
+     #                   largestallowedtranslation = 1 # so more than 1 meter we will go crazy.
+     #                   if any([aaa>largestallowedtranslation for aaa in lasttm.translation.asArray()]):                
+                        try:
+                            logging.info('??:')
+    
+                            logging.debug(lasttm.translation.asArray())
+                            othertm = adsk.core.Matrix3D.create()
+                            
+    
+                            #lasttm.translation.scaleBy(scale)
+                            #othertm.translation.setWithArray((thistranslation[0]*scale,thistranslation[1]*scale,thistranslation[2]*scale))
+                            for ii in range(0,4):
+                                for jj in range(0,4):
+                                    if (jj == 3) and (ii != 3):
+                                        othertm.setCell(ii,jj,thisUnitsMgr.convert(lasttm.getCell(ii,jj), thisUnitsMgr.internalUnits,'m'))
+                                    else:                                                
+                                        othertm.setCell(ii,jj,lasttm.getCell(ii,jj))
+                            logging.info('transformed to mm:')
+                            logging.debug(othertm.translation.asArray())   
+                            logging.info('whole tm:')
+                            logging.debug(othertm.asArray())   
+                            #logging.info('transformed to cm:')
+                            #logging.debug(thistmarray/100)
+                            logging.info('and then we need to get it back into newrotl')
+                            newrotl.pop(j)
+                            newrotl.insert(j,othertm)
+                        except:
+                            logging.debug('could not output corrections. {}'.format(traceback.format_exc()))
 
                 newrot = adsk.core.Matrix3D.create()
                 newrot.setToIdentity()
