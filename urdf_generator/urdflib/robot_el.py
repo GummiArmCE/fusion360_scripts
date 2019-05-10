@@ -460,7 +460,11 @@ class Link:
             
             ###TODO: this needs to be done for the joints as well. aff...
             removejointtranslation = adsk.core.Matrix3D.create()
-            translation = adsk.core.Vector3D.create(thisUnitsMgr.convert(-self.coordinatesystem.x, thisUnitsMgr.internalUnits,'m'), thisUnitsMgr.convert(-self.coordinatesystem.y, thisUnitsMgr.internalUnits,'m'), thisUnitsMgr.convert(-self.coordinatesystem.z, thisUnitsMgr.internalUnits,'m'))
+            if 0:
+                translation = adsk.core.Vector3D.create(thisUnitsMgr.convert(-self.coordinatesystem.x, thisUnitsMgr.internalUnits,'m'), thisUnitsMgr.convert(-self.coordinatesystem.y, thisUnitsMgr.internalUnits,'m'), thisUnitsMgr.convert(-self.coordinatesystem.z, thisUnitsMgr.internalUnits,'m'))
+            else:
+                translation = adsk.core.Vector3D.create(-self.coordinatesystem.x, -self.coordinatesystem.y, -self.coordinatesystem.z)
+
             removejointtranslation.setToIdentity()
             removejointtranslation.translation = translation
             logging.debug('Offset from joint is:' + str( removejointtranslation.asArray()))
@@ -531,7 +535,7 @@ class Link:
                         except:
                             logging.debug('could not output corrections. {}'.format(traceback.format_exc()))
 
-                if 0:
+                if 1:
                     newrot = adsk.core.Matrix3D.create()
                     newrot.setToIdentity()
                 else:
